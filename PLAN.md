@@ -216,9 +216,17 @@ Known cost note: parse call is not yet cached (re-spent each run) — add in ite
 - [x] Ops analysis filled in `evaluation_report.md` from the estimator
 - [x] Strategy comparison wired (`USE_DECIDER=0|1`); report section drafted
 - [x] **Packaging** (`make_submission.py` → code.zip, 41 files, no secrets)
-- [ ] **(API) Full live sample eval** → fill accuracy table + pick final strategy
-- [ ] **(API) Final run** on `dataset/claims.csv` → `output.csv` (44 rows)
-- [ ] Final submission checklist + rebuild code.zip with final report
+- [x] **Full live sample eval** (both strategies): deterministic **65%** vs
+      decider 40% claim_status → **chose deterministic** (USE_DECIDER default 0)
+- [x] **Final run** on `dataset/claims.csv` → `output.csv` (44 rows, validated:
+      exact header order, 0 vocab/echo errors; supported 31 / contradicted 6 /
+      not_enough_information 7)
+- [x] Rebuilt code.zip (41 files, no secrets) with final report
+
+### Status: SHIPPABLE ✅
+All three submission artifacts ready: `output.csv`, `code.zip`, `log.txt`.
+Remaining optional polish (time permitting): risk_flags calibration (currently
+over-flags user_history_risk) and issue_type granularity.
 
 ---
 

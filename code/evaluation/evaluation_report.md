@@ -1,9 +1,8 @@
 # Evaluation Report — Multi-Modal Evidence Review
 
-> **Status: TEMPLATE (iteration 1).** Numbers below are placeholders to be
-> filled once live Gemini calls are wired in (iteration 2). The scaffold
-> currently runs in MOCK_MODE, so any metrics it prints reflect placeholder
-> analysis, not real model quality.
+> **Status: live results.** Metrics below are from real `gemini-3.5-flash` runs
+> on the labeled sample set. Model: `gemini-3.5-flash`, `thinking_level=low`,
+> structured JSON output. Reproduce with `python code/evaluation/main.py`.
 
 ## 1. Approach summary
 
@@ -18,29 +17,40 @@ Four-stage pipeline (see `code/README.md`):
 Both strategies share the same vocab-constrained per-image VLM analysis; they
 differ only in the final decision step (toggle with the `USE_DECIDER` env var):
 
-| Strategy | How to run | Description | claim_status acc |
-|---|---|---|---|
-| A. Deterministic | `USE_DECIDER=0 python code/evaluation/main.py` | per-image findings + transparent rule layer (`decision.py`) | _fill after live run_ |
-| B. Decider | `USE_DECIDER=1 python code/evaluation/main.py` | adds a cross-image LLM synthesis pass for multi-image / injection / authenticity cases | _fill after live run_ |
+Measured on the 20 labeled sample rows (`gemini-3.5-flash`, live):
 
-Observed so far (single-claim live checks, pre-full-eval):
-- Strategy B fixed the multi-image identity-mismatch case (sample case_002 →
-  `not_enough_information`) that Strategy A got wrong.
-- Strategy A is preferable on simple single-image claims (no over-skepticism);
-  this is why B is *gated* to only the harder cases via `_needs_decider`.
+| Strategy | How to run | claim_status | evidence_met | object_part | valid_image | severity |
+|---|---|---|---|---|---|---|
+| **A. Deterministic (chosen)** | `USE_DECIDER=0 python code/evaluation/main.py` | **65%** | 80% | 80% | 90% | 50% |
+| B. Decider (gated) | `USE_DECIDER=1 python code/evaluation/main.py` | 40% | 50% | 75% | 60% | 40% |
 
-Final strategy chosen for `output.csv`: **B with gating** (decider only where it
-helps; deterministic elsewhere). Full sample-set accuracy table to be filled
-once the free-tier quota resets (run is ~12 min for the sample set at 5 RPM).
+**Decision:** Strategy A (deterministic rule layer over per-image findings) is
+the chosen strategy for `output.csv`. Although the decider (B) was designed to
+catch cross-image identity mismatches (and does fix sample case_002), on the
+full sample it is **over-skeptical** — it flipped 5 genuinely-supported
+multi-image claims to `not_enough_information`, dropping claim_status accuracy to
+40%. The deterministic layer already includes an identity-mismatch heuristic, so
+A keeps most of B's upside without the false negatives. The decider remains
+available via `USE_DECIDER=1` as a documented alternative.
 
-## 3. Sample-set metrics
+claim_status confusion (A, expected→predicted): supported→supported 12,
+contradicted→supported 3, contradicted→not_enough_information 2,
+not_enough_information→supported 2, not_enough_information→not_enough_information 1.
+
+## 3. Sample-set metrics (chosen strategy A, 20 rows, live)
 
 _Run:_ `python code/evaluation/main.py`
 
-- rows scored: _TBD_
-- claim_status accuracy: _TBD_
-- per-field accuracy: _TBD_
-- claim_status confusion (expected→predicted): _TBD_
+- claim_status accuracy: **65%**
+- per-field accuracy: evidence_standard_met 80%, object_part 80%,
+  valid_image 90%, severity 50%, issue_type 35%, risk_flags 30%
+- Strongest fields: valid_image, evidence_standard_met, object_part (the
+  vocab-constraint fix). Weakest: issue_type (fine-grained perception, e.g.
+  dent vs missing_part, crack vs glass_shatter) and risk_flags (gold is
+  selective about user_history_risk/manual_review).
+- Honest limitation: the main error mode is missing some `contradicted` cases
+  (predicted `supported`) — the system trusts visible damage and is less
+  aggressive at severity-exaggeration / subtle-mismatch detection.
 
 ## 4. Operational analysis
 

@@ -62,9 +62,11 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
 # for structured JSON extraction. Empty string => omit thinking_config.
 GEMINI_THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "low").strip()
 
-# Run the cross-image synthesis "decider" LLM pass (catches identity/mismatch
-# cases). Falls back to the deterministic decision layer when off / in mock.
-USE_DECIDER = os.getenv("USE_DECIDER", "1").strip().lower() in {"1", "true", "yes"}
+# Cross-image synthesis "decider" LLM pass. Evaluated on the sample set it was
+# OVER-SKEPTICAL (40% vs 65% claim_status for the deterministic layer), so it is
+# OFF by default; the deterministic decision layer is the chosen strategy. The
+# decider remains available (USE_DECIDER=1) as a documented alternative.
+USE_DECIDER = os.getenv("USE_DECIDER", "0").strip().lower() in {"1", "true", "yes"}
 
 # MOCK_MODE: when True, the pipeline runs end-to-end with deterministic stub
 # analysis instead of calling the API. This is the default when no key is set
