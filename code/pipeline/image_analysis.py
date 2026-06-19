@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import config
 from data_io import image_id_from_path, resolve_image_path
 from llm.cache import AnalysisCache
 from llm.gemini_client import GeminiClient
@@ -66,8 +67,16 @@ def analyze_image(
 
     image_bytes = abs_path.read_bytes()
 
+    # Cache namespace includes prompt version + model + mode so that mock
+    # placeholders never collide with live results (and switching models or
+    # editing the prompt correctly invalidates prior analyses).
+    cache_ns = (
+        f"{prompts.IMAGE_ANALYSIS_VERSION}|{config.GEMINI_MODEL}|"
+        f"{'mock' if client.mock else 'live'}"
+    )
+
     # Cache lookup (skip the call entirely on a hit).
-    cached = cache.get(image_bytes, prompts.IMAGE_ANALYSIS_VERSION)
+    cached = cache.get(image_bytes, cache_ns)
     if cached is not None:
         data = cached
     else:
@@ -79,7 +88,7 @@ def analyze_image(
             image_id=image_id,
         )
         data = client.generate_json(prompt, [image_bytes], mock_factory=_mock_finding)
-        cache.put(image_bytes, prompts.IMAGE_ANALYSIS_VERSION, data)
+        cache.put(image_bytes, cache_ns, data)
 
     return ImageFinding(
         image_id=image_id,

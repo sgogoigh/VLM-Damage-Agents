@@ -22,6 +22,12 @@ LLM_MOCK=1 python code/main.py --input dataset/sample_claims.csv --output out_sa
 # Evaluate against labeled sample set:
 LLM_MOCK=1 python code/evaluation/main.py
 
+# Run the test suite (forced mock mode, no network):
+python -m pytest code/tests/ -q
+
+# Live smoke test on real images (makes real Gemini calls):
+python code/smoke_live.py 2
+
 # Live run (iteration 2): set a key, then:
 #   cp code/.env.example code/.env  &&  edit GEMINI_API_KEY
 #   python code/main.py             # dataset/claims.csv -> ./output.csv

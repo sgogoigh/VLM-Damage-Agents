@@ -60,21 +60,30 @@ class GeminiClient:
         """Lazily import and configure the google-genai SDK."""
         if self._sdk is not None:
             return self._sdk
-        # TODO(iteration-2): wire up the real SDK, e.g.
-        #   from google import genai
-        #   self._sdk = genai.Client(api_key=config.GEMINI_API_KEY)
-        # Image parts are built with genai.types.Part.from_bytes(...).
-        raise NotImplementedError(
-            "Live Gemini SDK not wired yet. Set LLM_MOCK=1 (default without a "
-            "key) to run the scaffold, or implement _ensure_sdk/_live_call in "
-            "iteration 2."
-        )
+        if not config.GEMINI_API_KEY:
+            raise RuntimeError("GEMINI_API_KEY is not set; cannot make live calls.")
+        from google import genai  # imported lazily so mock mode needs no SDK
+
+        self._sdk = genai.Client(api_key=config.GEMINI_API_KEY)
+        return self._sdk
 
     def _live_call(self, prompt: str, image_bytes_list: list[bytes]) -> dict[str, Any]:
-        client = self._ensure_sdk()  # raises until implemented
-        # TODO(iteration-2): build contents = [prompt, *image_parts], request
-        # response_mime_type="application/json", parse and return the JSON.
-        raise NotImplementedError
+        from google.genai import types
+
+        client = self._ensure_sdk()
+        contents: list[Any] = [prompt]
+        for img in image_bytes_list:
+            contents.append(types.Part.from_bytes(data=img, mime_type="image/jpeg"))
+
+        response = client.models.generate_content(
+            model=self.model,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0,  # deterministic where possible (AGENTS.md S6.2)
+            ),
+        )
+        return self.parse_json(response.text or "")
 
     @staticmethod
     def _default_mock() -> dict[str, Any]:

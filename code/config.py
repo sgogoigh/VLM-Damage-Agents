@@ -12,22 +12,24 @@ import os
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Optional .env loading (no hard dependency if python-dotenv is missing)
-# ---------------------------------------------------------------------------
-try:
-    from dotenv import load_dotenv  # type: ignore
-
-    load_dotenv()
-except Exception:  # pragma: no cover - dotenv is optional
-    pass
-
-
-# ---------------------------------------------------------------------------
 # Paths (resolved relative to the repo root, never hardcoded absolutes)
 # ---------------------------------------------------------------------------
 CODE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = CODE_DIR.parent
 DATASET_DIR = REPO_ROOT / "dataset"
+
+# ---------------------------------------------------------------------------
+# .env loading (no hard dependency if python-dotenv is missing).
+# Load `code/.env` explicitly so it works regardless of the current working
+# directory, then fall back to the default cwd/parent search.
+# ---------------------------------------------------------------------------
+try:
+    from dotenv import load_dotenv  # type: ignore
+
+    load_dotenv(CODE_DIR / ".env")
+    load_dotenv()  # also honor a .env in cwd/parents if present
+except Exception:  # pragma: no cover - dotenv is optional
+    pass
 
 SAMPLE_CLAIMS_CSV = DATASET_DIR / "sample_claims.csv"
 CLAIMS_CSV = DATASET_DIR / "claims.csv"

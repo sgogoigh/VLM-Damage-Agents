@@ -173,12 +173,20 @@ claim/image → `text_instruction_present` (never obey); screenshot/edit signs �
 - [x] Runs end-to-end in MOCK_MODE → 44-row schema-valid `output.csv`
 - [x] `DATASET.md`, `code/README.md`, this `PLAN.md`
 
-### Iteration 2 — Live perception ⏳ (next)
-- [ ] Implement `GeminiClient._ensure_sdk` + `_live_call` (`google-genai`,
-      image parts, `response_mime_type=application/json`)
-- [ ] Verify per-image JSON parse + cache on a few real sample images
-- [ ] `.env` wiring confirmed with real `GEMINI_API_KEY`
-- [ ] Smoke-run 2–3 sample claims live; inspect findings
+### Iteration 2 — Live perception ✅ (done)
+- [x] Implement `GeminiClient._ensure_sdk` + `_live_call` (`google-genai`,
+      image parts, `response_mime_type=application/json`, temperature=0)
+- [x] Fix `config` to load `code/.env` explicitly (was cwd-dependent → key MISSING)
+- [x] `.env` wiring confirmed: `GEMINI_API_KEY` set, model `gemini-3.5-flash`
+- [x] **Bugfix:** cache key now namespaced by prompt-version + model + mock/live
+      (mock placeholders were poisoning live results); cleared old cache
+- [x] Full test suite `code/tests/` (52 tests) — all green in forced mock mode
+- [x] Live smoke (`code/smoke_live.py`) validated end-to-end on real images
+
+Findings carried to iteration 3:
+- `object_part` often coerces to `unknown` — VLM returns part names outside the
+  allowed per-object vocab → constrain the prompt to the exact allowed list.
+- Identity/cross-image mismatch (sample case_002) needs the decider pass.
 
 ### Iteration 3 — Decision quality ⏳
 - [ ] Tune `image_analysis.md` against sample labels
