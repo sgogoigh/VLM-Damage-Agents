@@ -47,6 +47,37 @@ def test_live_call_path_with_faked_sdk(monkeypatch):
     assert out == {"issue_visible": True, "issue_type": "dent"}
 
 
+def test_retry_delay_parsed_from_429():
+    err = RuntimeError("429 RESOURCE_EXHAUSTED ... Please retry in 39.04s. "
+                       "'retryDelay': '39s'")
+    delay = GeminiClient._retry_delay_from_error(err)
+    assert delay is not None and delay >= 39.0
+
+
+def test_retry_delay_none_when_absent():
+    assert GeminiClient._retry_delay_from_error(RuntimeError("boom")) is None
+
+
+def test_throttle_blocks_when_rpm_exceeded(monkeypatch):
+    import llm.gemini_client as gc
+    gc._CALL_TIMES.clear()
+    monkeypatch.setattr(gc.config, "GEMINI_RPM", 2)
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(gc.time, "monotonic", lambda: clock["t"])
+    slept = {"total": 0.0}
+
+    def fake_sleep(s):           # advance the fake clock so a slot frees
+        slept["total"] += s
+        clock["t"] += s
+    monkeypatch.setattr(gc.time, "sleep", fake_sleep)
+
+    GeminiClient._throttle()     # fills slot 1
+    GeminiClient._throttle()     # fills slot 2
+    GeminiClient._throttle()     # exceeds RPM=2 -> must sleep ~60s
+    assert slept["total"] > 0
+    gc._CALL_TIMES.clear()
+
+
 def test_live_retry_then_success(monkeypatch):
     client = GeminiClient()
     client.mock = False

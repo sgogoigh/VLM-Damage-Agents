@@ -42,6 +42,22 @@ def test_resolve_image_path_exists():
     assert p.exists()
 
 
+def test_count_and_append_output(tmp_path):
+    from data_io import append_output_row, count_output_rows
+    out = tmp_path / "o.csv"
+    assert count_output_rows(out) == 0  # missing file
+    r1 = PredictionRow(user_id="u1", image_paths="a.jpg", user_claim="c",
+                       claim_object="car", claim_status="supported")
+    r2 = PredictionRow(user_id="u2", image_paths="b.jpg", user_claim="c",
+                       claim_object="laptop", claim_status="contradicted")
+    append_output_row(r1, out)        # writes header + row
+    assert count_output_rows(out) == 1
+    append_output_row(r2, out)        # appends, no second header
+    assert count_output_rows(out) == 2
+    with open(out, encoding="utf-8") as f:
+        assert f.read().count("user_id") == 1  # header only once
+
+
 def test_write_output_roundtrip(tmp_path):
     rows = [PredictionRow(user_id="u1", image_paths="x.jpg", user_claim="c",
                           claim_object="car", claim_status="supported")]

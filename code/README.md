@@ -28,10 +28,20 @@ python -m pytest code/tests/ -q
 # Live smoke test on real images (makes real Gemini calls):
 python code/smoke_live.py 2
 
-# Live run (iteration 2): set a key, then:
-#   cp code/.env.example code/.env  &&  edit GEMINI_API_KEY
+# Live run: set a key in code/.env (GEMINI_API_KEY, GEMINI_MODEL), then:
 #   python code/main.py             # dataset/claims.csv -> ./output.csv
+#   python code/main.py --resume    # continue an interrupted (throttled) run
+
+# Offline operational estimate (no API):
+python code/evaluation/estimate_ops.py
+
+# Build the submission archive (code.zip, excludes secrets/caches):
+python make_submission.py
 ```
+
+Free-tier `gemini-3.5-flash` is **~5 requests/minute**, so a full run is rate-
+limited (~32 min for the test set). The client throttles to `GEMINI_RPM` and the
+run is **resumable** (`--resume`) and **cached**, so it can be stopped/restarted.
 
 On Windows PowerShell, set the mock flag with `$env:LLM_MOCK=1` before running.
 

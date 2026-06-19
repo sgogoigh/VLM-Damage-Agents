@@ -57,6 +57,15 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 # compare configs in the evaluation report (problem_statement.md "Evaluation").
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
 
+# Gemini 3.x removed temperature/top_p/top_k and replaced thinking_budget with
+# thinking_level (minimal|low|medium|high). low/minimal = deterministic + fast
+# for structured JSON extraction. Empty string => omit thinking_config.
+GEMINI_THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "low").strip()
+
+# Run the cross-image synthesis "decider" LLM pass (catches identity/mismatch
+# cases). Falls back to the deterministic decision layer when off / in mock.
+USE_DECIDER = os.getenv("USE_DECIDER", "1").strip().lower() in {"1", "true", "yes"}
+
 # MOCK_MODE: when True, the pipeline runs end-to-end with deterministic stub
 # analysis instead of calling the API. This is the default when no key is set
 # OR when LLM_MOCK is truthy, so iteration-1 scaffolding never spends tokens.
@@ -69,8 +78,12 @@ MOCK_MODE = _FORCE_MOCK or not GEMINI_API_KEY
 # ---------------------------------------------------------------------------
 MAX_CONCURRENCY = int(os.getenv("MAX_CONCURRENCY", "4"))
 REQUEST_TIMEOUT_S = int(os.getenv("REQUEST_TIMEOUT_S", "60"))
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", "5"))
 RETRY_BASE_DELAY_S = float(os.getenv("RETRY_BASE_DELAY_S", "2.0"))
+
+# Free-tier gemini-3.5-flash is limited to ~5 requests/minute. Client-side
+# throttle spaces calls to stay under this; raise if you have a paid tier.
+GEMINI_RPM = int(os.getenv("GEMINI_RPM", "5"))
 
 
 def summary() -> str:

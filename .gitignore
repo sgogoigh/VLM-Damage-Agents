@@ -12,3 +12,6 @@ log.txt
 # Unnecessary cache files and directories to ignore
 */__pycache__/
 */.cache/
+
+# Build artifact (regenerate with make_submission.py)
+code.zip

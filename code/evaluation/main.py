@@ -51,8 +51,11 @@ def main() -> int:
     ]
 
     result = M.score(predicted, expected)
-    strategy = f"baseline ({config.GEMINI_MODEL}{' / MOCK' if config.MOCK_MODE else ''})"
+    decider = "decider" if (config.USE_DECIDER and not config.MOCK_MODE) else "deterministic"
+    strategy = (f"{config.GEMINI_MODEL} / {decider}"
+                f"{' / MOCK' if config.MOCK_MODE else ''}")
     print(M.format_report(result, strategy))
+    print("\n[tip] Compare strategies: run with USE_DECIDER=1 and USE_DECIDER=0.")
     return 0
 
 

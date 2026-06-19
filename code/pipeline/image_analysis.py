@@ -16,6 +16,7 @@ from llm.cache import AnalysisCache
 from llm.gemini_client import GeminiClient
 from pipeline import prompts
 from pipeline.claim_parser import ParsedClaim
+from schema import ISSUE_TYPES, OBJECT_PARTS
 
 
 @dataclass
@@ -24,12 +25,15 @@ class ImageFinding:
     rel_path: str
     shows_claimed_object: bool = False
     object_seen: str = "unclear"
+    identity_descriptor: str = ""
     visible_part: str = "unknown"
     issue_visible: bool = False
     issue_type: str = "unknown"
     issue_part: str = "unknown"
     severity: str = "unknown"
     usable_for_review: bool = False
+    looks_non_original: bool = False
+    has_on_image_instruction_text: bool = False
     quality_flags: list[str] = field(default_factory=list)
     notes: str = ""
     missing: bool = False  # image file not found on disk
@@ -40,12 +44,15 @@ def _mock_finding(_prompt: str, _imgs) -> dict:
     return {
         "shows_claimed_object": False,
         "object_seen": "unclear",
+        "identity_descriptor": "",
         "visible_part": "unknown",
         "issue_visible": False,
         "issue_type": "unknown",
         "issue_part": "unknown",
         "severity": "unknown",
         "usable_for_review": False,
+        "looks_non_original": False,
+        "has_on_image_instruction_text": False,
         "quality_flags": [],
         "notes": "(mock) no live VLM analysis performed",
     }
@@ -80,12 +87,16 @@ def analyze_image(
     if cached is not None:
         data = cached
     else:
+        allowed_parts = ", ".join(sorted(OBJECT_PARTS.get(claim_object, {"unknown"})))
+        allowed_issues = ", ".join(sorted(ISSUE_TYPES))
         prompt = prompts.render(
             prompts.IMAGE_ANALYSIS_TEMPLATE,
             claim_object=claim_object,
             claimed_issue=parsed.claimed_issue,
             claimed_part=", ".join(parsed.claimed_parts),
             image_id=image_id,
+            allowed_parts=allowed_parts,
+            allowed_issues=allowed_issues,
         )
         data = client.generate_json(prompt, [image_bytes], mock_factory=_mock_finding)
         cache.put(image_bytes, cache_ns, data)
@@ -95,12 +106,15 @@ def analyze_image(
         rel_path=rel_path,
         shows_claimed_object=bool(data.get("shows_claimed_object", False)),
         object_seen=data.get("object_seen", "unclear"),
+        identity_descriptor=data.get("identity_descriptor", ""),
         visible_part=data.get("visible_part", "unknown"),
         issue_visible=bool(data.get("issue_visible", False)),
         issue_type=data.get("issue_type", "unknown"),
         issue_part=data.get("issue_part", "unknown"),
         severity=data.get("severity", "unknown"),
         usable_for_review=bool(data.get("usable_for_review", False)),
+        looks_non_original=bool(data.get("looks_non_original", False)),
+        has_on_image_instruction_text=bool(data.get("has_on_image_instruction_text", False)),
         quality_flags=list(data.get("quality_flags", []) or []),
         notes=data.get("notes", ""),
     )

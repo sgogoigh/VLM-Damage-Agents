@@ -64,6 +64,26 @@ def decide(
     # Aggregate quality flags as risk flags.
     for f in present:
         risk_flags.extend(f.quality_flags)
+        if f.looks_non_original:
+            risk_flags.append("non_original_image")
+        if f.has_on_image_instruction_text:
+            risk_flags.append("text_instruction_present")
+
+    # Instruction/manipulation text in the conversation (prompt injection) -
+    # flag it, never obey it.
+    if getattr(parsed, "injection_detected", False):
+        risk_flags.append("text_instruction_present")
+
+    # Cross-image identity mismatch (e.g. two photos of different cars):
+    # distinct identity descriptors among usable images that purport to show
+    # the claimed object -> wrong_object / claim_mismatch / manual review.
+    descriptors = [f.identity_descriptor.strip().lower()
+                   for f in usable if f.identity_descriptor.strip()]
+    if len(descriptors) >= 2 and len({d for d in descriptors}) > 1:
+        # heuristic fallback only; the decider does the nuanced version.
+        if any(not f.shows_claimed_object for f in usable):
+            risk_flags.extend(["wrong_object", "claim_mismatch",
+                               "manual_review_required"])
 
     # --- valid_image / evidence_standard_met -------------------------------
     valid_image = len(usable) > 0

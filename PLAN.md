@@ -188,18 +188,37 @@ Findings carried to iteration 3:
   allowed per-object vocab → constrain the prompt to the exact allowed list.
 - Identity/cross-image mismatch (sample case_002) needs the decider pass.
 
-### Iteration 3 — Decision quality ⏳
-- [ ] Tune `image_analysis.md` against sample labels
-- [ ] Improve claim_parser (multilingual, multi-part, distractor transcripts)
-- [ ] Optional final "decider" LLM pass for hard multi-image cases
-      (identity/color/side mismatch, e.g. sample case_002)
-- [ ] Calibrate risk-flag, severity, valid_image mapping to labels
+### Iteration 3 — Decision quality 🔄 (mostly done)
+- [x] Gemini 3.x API fixes: drop temperature/top_p/top_k; use
+      `thinking_level=low`; keep `response_mime_type=application/json`
+- [x] Constrain `image_analysis.md` (v2) to exact allowed vocab → fixes
+      `object_part=unknown`; add identity + authenticity signals
+- [x] Strengthen claim_parser (v2): multilingual, multi-part, distractor,
+      injection-resistant + deterministic `detect_injection()` (defense in depth)
+- [x] Cross-image **decider** LLM pass (`pipeline/decider.py`, cached) — fixed
+      sample case_002 identity mismatch → not_enough_information
+- [x] Decider **gated** to multi-image/injection/authenticity cases
+      (`_needs_decider`) → cuts calls + fixed case_001 single-image regression
+- [x] **Rate limiting:** measured free-tier limit = 5 RPM; added throttle +
+      server `retryDelay` honoring (`GEMINI_RPM`, `_throttle`)
+- [x] Tests: 70 passing (added injection, decider, gating, throttle/retry)
+- [ ] Full live sample-eval accuracy numbers (deferred to iteration 4 / ops)
+- [ ] Further calibrate severity / valid_image vs labels if time permits
 
-### Iteration 4 — Eval, ops, ship ⏳
-- [ ] Compare ≥2 strategies; fill real numbers in `evaluation_report.md`
-- [ ] Add bounded concurrency; measure calls/tokens/cost/latency
-- [ ] Final run on `dataset/claims.csv` → `output.csv` (44 rows)
-- [ ] Package `code.zip` (exclude venv/cache); final submission checklist
+Known cost note: parse call is not yet cached (re-spent each run) — add in iter 4.
+
+### Iteration 4 — Eval, ops, ship 🔄 (non-API prep done; live run pending quota)
+- [x] **Parse caching** (claim_parser caches live parses) — cuts re-run cost
+- [x] **Resumable + incremental `output.csv`** (`main.py --resume`,
+      `append_output_row`) — survives interruption during the throttled run
+- [x] **Offline ops estimator** (`evaluation/estimate_ops.py`): sample=58 calls
+      /~11.6 min, test=158 calls/~31.6 min @5 RPM; 0 duplicate images
+- [x] Ops analysis filled in `evaluation_report.md` from the estimator
+- [x] Strategy comparison wired (`USE_DECIDER=0|1`); report section drafted
+- [x] **Packaging** (`make_submission.py` → code.zip, 41 files, no secrets)
+- [ ] **(API) Full live sample eval** → fill accuracy table + pick final strategy
+- [ ] **(API) Final run** on `dataset/claims.csv` → `output.csv` (44 rows)
+- [ ] Final submission checklist + rebuild code.zip with final report
 
 ---
 

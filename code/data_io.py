@@ -70,10 +70,34 @@ def image_id_from_path(rel_path: str) -> str:
 
 
 def write_output(rows: list[PredictionRow], out_path: Path) -> None:
-    """Write predictions with the exact required header/order."""
+    """Write predictions with the exact required header/order (full rewrite)."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=OUTPUT_COLUMNS, quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for row in rows:
             writer.writerow(row.to_csv_dict())
+
+
+def count_output_rows(out_path: Path) -> int:
+    """Number of DATA rows already written (0 if file missing/empty)."""
+    if not out_path.exists():
+        return 0
+    with open(out_path, newline="", encoding="utf-8") as f:
+        n = sum(1 for _ in csv.reader(f))
+    return max(0, n - 1)  # minus header
+
+
+def append_output_row(row: PredictionRow, out_path: Path) -> None:
+    """Append one prediction, writing the header first if the file is new.
+
+    Enables incremental + resumable runs: a long throttled run can be stopped
+    and resumed without losing completed rows.
+    """
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    new_file = not out_path.exists() or out_path.stat().st_size == 0
+    with open(out_path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=OUTPUT_COLUMNS, quoting=csv.QUOTE_ALL)
+        if new_file:
+            writer.writeheader()
+        writer.writerow(row.to_csv_dict())

@@ -58,3 +58,29 @@ def test_quality_flags_propagate_to_risk():
     f = _finding(quality_flags=["blurry_image"])
     d = decide("car", parsed, [f], REQS)
     assert "blurry_image" in d.risk_flags
+
+
+def test_non_original_and_on_image_text_flags():
+    parsed = ParsedClaim(claimed_parts=["rear_bumper"], claimed_issue="dent")
+    f = _finding(looks_non_original=True, has_on_image_instruction_text=True)
+    d = decide("car", parsed, [f], REQS)
+    assert "non_original_image" in d.risk_flags
+    assert "text_instruction_present" in d.risk_flags
+
+
+def test_injection_in_claim_sets_text_instruction_present():
+    parsed = ParsedClaim(claimed_parts=["rear_bumper"], claimed_issue="dent",
+                         injection_detected=True)
+    d = decide("car", parsed, [_finding()], REQS)
+    assert "text_instruction_present" in d.risk_flags
+
+
+def test_identity_mismatch_flags_wrong_object():
+    parsed = ParsedClaim(claimed_parts=["front_bumper"], claimed_issue="scratch")
+    f1 = _finding(image_id="img_1", identity_descriptor="silver sedan",
+                  shows_claimed_object=True)
+    f2 = _finding(image_id="img_2", identity_descriptor="red hatchback",
+                  shows_claimed_object=False)
+    d = decide("car", parsed, [f1, f2], REQS)
+    assert "wrong_object" in d.risk_flags
+    assert "manual_review_required" in d.risk_flags
