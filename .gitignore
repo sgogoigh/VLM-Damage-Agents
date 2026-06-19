@@ -1,0 +1,14 @@
+# Ignore the .env file, which contains sensitive information
+.env
+.env.example
+
+# Ignore the virtual environment directory
+.venv/
+.venev/
+
+# Contains chat transcript, to be ignored
+log.txt
+
+# Unnecessary cache files and directories to ignore
+*/__pycache__/
+*/.cache/

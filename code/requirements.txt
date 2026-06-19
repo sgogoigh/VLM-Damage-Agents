@@ -1,0 +1,7 @@
+# Multi-Modal Evidence Review - runtime dependencies
+# Live mode (iteration 2) needs the Gemini SDK + image handling.
+# The scaffold runs in MOCK_MODE with only the stdlib + python-dotenv.
+
+python-dotenv>=1.0.0      # load .env (optional but recommended)
+google-genai>=0.3.0       # Gemini SDK (needed only for live calls)
+Pillow>=10.0.0            # image loading / optional preprocessing
