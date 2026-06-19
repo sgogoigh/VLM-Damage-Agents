@@ -12,10 +12,10 @@ REQS = [{"requirement_id": "REQ_CAR_BODY_PANEL", "claim_object": "car",
 
 
 def _finding(**kw):
-    base = dict(image_id="img_1", rel_path="p.jpg", shows_claimed_object=True,
-                identity_descriptor="silver sedan front", visible_part="rear_bumper",
-                issue_visible=True, issue_type="dent", issue_part="rear_bumper",
-                severity="medium", usable_for_review=True)
+    base = dict(image_id="img_1", rel_path="p.jpg", object_match="match",
+                identity_descriptor="silver sedan front", claimed_part_visible=True,
+                actual_part="rear_bumper", claimed_issue_present="yes",
+                actual_issue_type="dent", severity="medium", usable_for_review=True)
     base.update(kw)
     return ImageFinding(**base)
 

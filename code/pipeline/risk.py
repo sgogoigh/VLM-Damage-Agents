@@ -19,20 +19,15 @@ def apply_user_history(
     if not row:
         return flags
 
-    hist_flags = (row.get("history_flags", "") or "").strip().lower()
-    if hist_flags and hist_flags != "none":
-        flags.append("user_history_risk")
+    hist = (row.get("history_flags", "") or "").strip().lower()
+    hist_set = {h.strip() for h in hist.split(";") if h.strip() and h.strip() != "none"}
 
-    # Recent burst of claims is a soft risk signal.
-    try:
-        recent = int(row.get("last_90_days_claim_count", "0") or "0")
-    except ValueError:
-        recent = 0
-    if recent >= 4:
+    # Mirror the labeled convention: a user flagged user_history_risk is also
+    # routed to manual review; an explicit manual_review_required carries over.
+    if "user_history_risk" in hist_set:
         flags.append("user_history_risk")
-
-    # If the claim is uncertain AND the user is risky, route to manual review.
-    if "user_history_risk" in flags and claim_status == "not_enough_information":
+        flags.append("manual_review_required")
+    if "manual_review_required" in hist_set:
         flags.append("manual_review_required")
 
     return flags

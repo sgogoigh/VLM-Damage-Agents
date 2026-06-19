@@ -27,7 +27,8 @@ def test_real_image_mock_finding(tmp_path):
     assert f.missing is False
     assert f.image_id == "img_1"
     # mock returns neutral, non-committal analysis
-    assert f.issue_visible is False
+    assert f.claimed_issue_present == "unclear"
+    assert f.object_match == "unclear"
     assert f.usable_for_review is False
 
 

@@ -1,9 +1,10 @@
 """
-Stage 2 - per-image VLM analysis.
+Stage 2 - per-image VLM analysis (claim-grounded, staged).
 
-Each image is analyzed independently (problem_statement REQ_GENERAL_MULTI_IMAGE),
-cached by content hash, and deduped so the same image is never analyzed twice.
-In MOCK_MODE a neutral, deterministic finding is returned (no API call).
+Each image is analyzed independently against the specific claim and answers
+the staged verification questions (category -> part visible -> issue present).
+Cached by content hash; in MOCK_MODE a neutral, deterministic finding is
+returned (no API call).
 """
 from __future__ import annotations
 
@@ -14,7 +15,6 @@ import config
 from data_io import image_id_from_path, resolve_image_path
 from llm.cache import AnalysisCache
 from llm.gemini_client import GeminiClient
-from pipeline import prompts
 from pipeline.claim_parser import ParsedClaim
 from schema import ISSUE_TYPES, OBJECT_PARTS
 
@@ -23,14 +23,18 @@ from schema import ISSUE_TYPES, OBJECT_PARTS
 class ImageFinding:
     image_id: str
     rel_path: str
-    shows_claimed_object: bool = False
-    object_seen: str = "unclear"
+    # Stage 1 - category
+    object_match: str = "unclear"          # match | mismatch | unclear
+    object_color: str = ""
     identity_descriptor: str = ""
-    visible_part: str = "unknown"
-    issue_visible: bool = False
-    issue_type: str = "unknown"
-    issue_part: str = "unknown"
+    # Stage 2 - part
+    claimed_part_visible: bool = False
+    actual_part: str = "unknown"
+    # Stage 3 - issue
+    claimed_issue_present: str = "unclear"  # yes | no | unclear
+    actual_issue_type: str = "unknown"
     severity: str = "unknown"
+    # Stage 4 - usability / authenticity
     usable_for_review: bool = False
     looks_non_original: bool = False
     has_on_image_instruction_text: bool = False
@@ -40,15 +44,15 @@ class ImageFinding:
 
 
 def _mock_finding(_prompt: str, _imgs) -> dict:
-    # Neutral placeholder: scaffolding must not pretend to "see" anything.
+    # Neutral placeholder: must not pretend to "see" anything.
     return {
-        "shows_claimed_object": False,
-        "object_seen": "unclear",
+        "object_match": "unclear",
+        "object_color": "",
         "identity_descriptor": "",
-        "visible_part": "unknown",
-        "issue_visible": False,
-        "issue_type": "unknown",
-        "issue_part": "unknown",
+        "claimed_part_visible": False,
+        "actual_part": "unknown",
+        "claimed_issue_present": "unclear",
+        "actual_issue_type": "unknown",
         "severity": "unknown",
         "usable_for_review": False,
         "looks_non_original": False,
@@ -65,6 +69,8 @@ def analyze_image(
     client: GeminiClient,
     cache: AnalysisCache,
 ) -> ImageFinding:
+    from pipeline import prompts
+
     image_id = image_id_from_path(rel_path)
     abs_path: Path = resolve_image_path(rel_path)
 
@@ -74,15 +80,13 @@ def analyze_image(
 
     image_bytes = abs_path.read_bytes()
 
-    # Cache namespace includes prompt version + model + mode so that mock
-    # placeholders never collide with live results (and switching models or
-    # editing the prompt correctly invalidates prior analyses).
+    # Namespace includes prompt version + model + mode so mock placeholders never
+    # collide with live results and prompt/model changes invalidate the cache.
     cache_ns = (
         f"{prompts.IMAGE_ANALYSIS_VERSION}|{config.GEMINI_MODEL}|"
         f"{'mock' if client.mock else 'live'}"
     )
 
-    # Cache lookup (skip the call entirely on a hit).
     cached = cache.get(image_bytes, cache_ns)
     if cached is not None:
         data = cached
@@ -94,6 +98,7 @@ def analyze_image(
             claim_object=claim_object,
             claimed_issue=parsed.claimed_issue,
             claimed_part=", ".join(parsed.claimed_parts),
+            claim_summary=parsed.summary or "(see claimed part/issue)",
             image_id=image_id,
             allowed_parts=allowed_parts,
             allowed_issues=allowed_issues,
@@ -104,13 +109,13 @@ def analyze_image(
     return ImageFinding(
         image_id=image_id,
         rel_path=rel_path,
-        shows_claimed_object=bool(data.get("shows_claimed_object", False)),
-        object_seen=data.get("object_seen", "unclear"),
+        object_match=str(data.get("object_match", "unclear")).lower(),
+        object_color=str(data.get("object_color", "")).lower(),
         identity_descriptor=data.get("identity_descriptor", ""),
-        visible_part=data.get("visible_part", "unknown"),
-        issue_visible=bool(data.get("issue_visible", False)),
-        issue_type=data.get("issue_type", "unknown"),
-        issue_part=data.get("issue_part", "unknown"),
+        claimed_part_visible=bool(data.get("claimed_part_visible", False)),
+        actual_part=data.get("actual_part", "unknown"),
+        claimed_issue_present=str(data.get("claimed_issue_present", "unclear")).lower(),
+        actual_issue_type=data.get("actual_issue_type", "unknown"),
         severity=data.get("severity", "unknown"),
         usable_for_review=bool(data.get("usable_for_review", False)),
         looks_non_original=bool(data.get("looks_non_original", False)),

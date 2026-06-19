@@ -31,12 +31,13 @@ def _findings_payload(findings: list[ImageFinding]) -> list[dict]:
             continue
         out.append({
             "image_id": f.image_id,
-            "shows_claimed_object": f.shows_claimed_object,
+            "object_match": f.object_match,
+            "object_color": f.object_color,
             "identity_descriptor": f.identity_descriptor,
-            "visible_part": f.visible_part,
-            "issue_visible": f.issue_visible,
-            "issue_type": f.issue_type,
-            "issue_part": f.issue_part,
+            "claimed_part_visible": f.claimed_part_visible,
+            "actual_part": f.actual_part,
+            "claimed_issue_present": f.claimed_issue_present,
+            "actual_issue_type": f.actual_issue_type,
             "severity": f.severity,
             "usable_for_review": f.usable_for_review,
             "looks_non_original": f.looks_non_original,

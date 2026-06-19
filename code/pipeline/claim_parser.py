@@ -32,6 +32,29 @@ def detect_injection(text: str) -> bool:
     return bool(_INJECTION_RE.search(text or ""))
 
 
+def normalize_part(raw: str, claim_object: str) -> str:
+    """Map a free-text part (e.g. 'rear bumper') to the allowed vocab token."""
+    parts = OBJECT_PARTS.get(claim_object, set())
+    t = (raw or "").strip().lower().replace("-", " ").replace(" ", "_")
+    if t in parts:
+        return t
+    for p in parts:                      # partial/substring match
+        if p != "unknown" and (p in t or t in p):
+            return p
+    return t  # leave cleaned; schema coercion maps unknowns to 'unknown'
+
+
+def normalize_issue(raw: str) -> str:
+    """Map a free-text issue to an allowed issue token when possible."""
+    t = (raw or "").strip().lower().replace("-", " ").replace(" ", "_")
+    if t in ISSUE_TYPES:
+        return t
+    for i in ISSUE_TYPES:
+        if i not in ("none", "unknown") and i in t:
+            return i
+    return raw  # keep free text (still useful as VLM context)
+
+
 @dataclass
 class ParsedClaim:
     claimed_parts: list[str] = field(default_factory=list)
@@ -87,9 +110,11 @@ def parse_claim(
             cache.put(key_bytes, cache_ns, data)
     # Deterministic detector OR the model's flag - belt and suspenders.
     injection = bool(data.get("injection_detected", False)) or detect_injection(user_claim)
+    raw_parts = data.get("claimed_parts") or ["unknown"]
+    norm_parts = [normalize_part(p, claim_object) for p in raw_parts] or ["unknown"]
     return ParsedClaim(
-        claimed_parts=data.get("claimed_parts") or ["unknown"],
-        claimed_issue=data.get("claimed_issue", "unknown"),
+        claimed_parts=norm_parts,
+        claimed_issue=normalize_issue(data.get("claimed_issue", "unknown")),
         multi_part=bool(data.get("multi_part", False)),
         injection_detected=injection,
         summary=data.get("summary", ""),

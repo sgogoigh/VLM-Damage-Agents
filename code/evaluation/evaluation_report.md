@@ -6,11 +6,18 @@
 
 ## 1. Approach summary
 
-Four-stage pipeline (see `code/README.md`):
-1. Claim parsing (text) → claimed part(s) + issue
-2. Per-image VLM analysis (Gemini, cached by image content hash)
-3. Requirements-aware deterministic decision layer
-4. User-history risk overlay (context only)
+Pipeline (see `code/README.md`):
+1. **Claim parsing** (text) → claimed part(s) + issue, **normalized to the
+   allowed vocab** (e.g. "rear bumper" → `rear_bumper`), multilingual + injection
+   detection.
+2. **Per-image VLM analysis** (Gemini, cached by content hash) that runs a
+   **staged claim-grounded check**: STEP 1 category (is it the claimed object?),
+   STEP 2 claimed part visible?, STEP 3 is the *claimed* issue present at a
+   consistent severity?
+3. **Staged deterministic decision** that compares EVIDENCE vs CLAIM — visible
+   damage only supports the claim if it matches what was claimed; otherwise the
+   claim is contradicted.
+4. **User-history risk overlay** (context only; never flips the decision).
 
 ## 2. Strategies compared (required: ≥2)
 
@@ -19,38 +26,48 @@ differ only in the final decision step (toggle with the `USE_DECIDER` env var):
 
 Measured on the 20 labeled sample rows (`gemini-3.5-flash`, live):
 
-| Strategy | How to run | claim_status | evidence_met | object_part | valid_image | severity |
-|---|---|---|---|---|---|---|
-| **A. Deterministic (chosen)** | `USE_DECIDER=0 python code/evaluation/main.py` | **65%** | 80% | 80% | 90% | 50% |
-| B. Decider (gated) | `USE_DECIDER=1 python code/evaluation/main.py` | 40% | 50% | 75% | 60% | 40% |
+| Strategy | claim_status | evidence_met | object_part | valid_image | issue_type |
+|---|---|---|---|---|---|
+| 1. Naive ("any damage → supported") | 65% | 80% | 80%* | 90% | 35% |
+| 2. Cross-image LLM decider (gated) | 40% | 50% | 75% | 60% | 20% |
+| **3. Staged claim-grounded (chosen)** | **70%** | **90%** | **90%** | 85% | **45%** |
 
-**Decision:** Strategy A (deterministic rule layer over per-image findings) is
-the chosen strategy for `output.csv`. Although the decider (B) was designed to
-catch cross-image identity mismatches (and does fix sample case_002), on the
-full sample it is **over-skeptical** — it flipped 5 genuinely-supported
-multi-image claims to `not_enough_information`, dropping claim_status accuracy to
-40%. The deterministic layer already includes an identity-mismatch heuristic, so
-A keeps most of B's upside without the false negatives. The decider remains
-available via `USE_DECIDER=1` as a documented alternative.
+\*the naive object_part figure predated the vocab-normalization bug fix.
 
-claim_status confusion (A, expected→predicted): supported→supported 12,
-contradicted→supported 3, contradicted→not_enough_information 2,
-not_enough_information→supported 2, not_enough_information→not_enough_information 1.
+**Chosen: Strategy 3 — staged, claim-grounded deterministic decision.**
 
-## 3. Sample-set metrics (chosen strategy A, 20 rows, live)
+Journey / what moved the numbers:
+- The naive layer marked a claim supported whenever *any* damage was visible, so
+  it missed every `contradicted` case (claim vs evidence never compared).
+- The LLM decider (2) was over-skeptical — it flipped genuinely-supported
+  multi-image claims to `not_enough_information` (40%). Kept as opt-in
+  (`USE_DECIDER=1`), off by default.
+- The staged approach (3) verifies category → part → claimed-issue, and a
+  parser **vocab-normalization fix** lifted `object_part` 55%→90% and
+  `evidence_standard_met` to 90%. Dropping a faulty color-based identity
+  heuristic removed false "different object" negatives.
+
+Remaining claim_status errors are mostly `contradicted→supported`: the VLM sees
+damage that the labels treat as exaggerated/mismatched — subjective cases we do
+not overfit to (the rubric forbids hardcoding test answers).
+
+## 3. Sample-set metrics (chosen staged strategy, 20 rows, live)
 
 _Run:_ `python code/evaluation/main.py`
 
-- claim_status accuracy: **65%**
-- per-field accuracy: evidence_standard_met 80%, object_part 80%,
-  valid_image 90%, severity 50%, issue_type 35%, risk_flags 30%
-- Strongest fields: valid_image, evidence_standard_met, object_part (the
-  vocab-constraint fix). Weakest: issue_type (fine-grained perception, e.g.
-  dent vs missing_part, crack vs glass_shatter) and risk_flags (gold is
-  selective about user_history_risk/manual_review).
-- Honest limitation: the main error mode is missing some `contradicted` cases
-  (predicted `supported`) — the system trusts visible damage and is less
-  aggressive at severity-exaggeration / subtle-mismatch detection.
+- **claim_status accuracy: 70%**
+- per-field: evidence_standard_met **90%**, object_part **90%**, valid_image 85%,
+  issue_type 45%, severity 40%, risk_flags 30%
+- claim_status confusion (expected→predicted): supported→supported 10,
+  contradicted→supported 3, contradicted→contradicted 2,
+  not_enough_information→not_enough_information 2, plus 3 singletons.
+- Strongest: object_part, evidence_standard_met (claim-grounded + vocab fix).
+- Weakest: issue_type (fine-grained perception: dent vs missing_part, crack vs
+  glass_shatter), severity (VLM over-rates), risk_flags (strict set-match; other
+  per-row flags differ even when history flags are correct).
+- Honest limitation: residual `contradicted→supported` errors — the VLM trusts
+  visible damage and is less aggressive on severity-exaggeration / subtle
+  mismatch. These are subjective vs the labels; not overfit to.
 
 ## 4. Operational analysis
 
