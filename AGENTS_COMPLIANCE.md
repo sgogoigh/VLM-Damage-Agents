@@ -3,7 +3,7 @@
 Living checklist of every AGENTS.md guideline. **Verified after every step/turn.**
 Source of truth is `AGENTS.md`; this file only tracks adherence. Not part of `code.zip`.
 
-- **Last verified:** 2026-06-20T05:10 IST (turn: "quality rework — staged pipeline, 70% + object_part 90%")
+- **Last verified:** 2026-06-20T09:30 IST (turn: "Claude-as-VLM output.csv + image-format fix")
 - **Log file (canonical, §2):** `C:\Users\sgogo\hackerrank_orchestrate\log.txt`
 - **Log file (user-facing mirror):** `C:\Users\sgogo\OneDrive\Desktop\Hackerrank Orchastrate\log.txt`
   — every turn is appended to BOTH (kept in sync). Never inside the repo (gitignored).

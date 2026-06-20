@@ -1,32 +1,28 @@
 """
-Orchestrator - run the full 4-stage pipeline for one claim and build a
-schema-valid PredictionRow.
+Orchestrator - run the full chain for one claim and build a schema-valid
+PredictionRow.
+
+  Stage 1  parse claim  (object, parts, issue, severity, multi_part)
+  Stage 2  per-image VLM chain (object -> per-part issue -> severity welfare)
+  Stage 3  deterministic decision (merge + welfare + history tiebreaker)
+  Stage 4  user-history risk overlay (context flags only; never flips status)
 """
 from __future__ import annotations
 
-import config
 from llm.cache import AnalysisCache
 from llm.gemini_client import GeminiClient
 from pipeline.claim_parser import parse_claim
-from pipeline.decider import run_decider
 from pipeline.decision import decide
 from pipeline.image_analysis import analyze_images
 from pipeline.risk import apply_user_history
-from pipeline.image_analysis import ImageFinding
-from pipeline.claim_parser import ParsedClaim
 from schema import ClaimRecord, PredictionRow
 
 
-def _needs_decider(parsed: ParsedClaim, findings: list[ImageFinding]) -> bool:
-    """The decider earns its call only on the harder cases."""
-    present = [f for f in findings if not f.missing]
-    if len(present) >= 2:
-        return True  # cross-image consistency reasoning
-    if parsed.injection_detected:
-        return True
-    if any(f.looks_non_original or f.has_on_image_instruction_text for f in present):
-        return True
-    return False
+def _history_risky(history_row: dict | None) -> bool:
+    if not history_row:
+        return False
+    hist = (history_row.get("history_flags", "") or "").strip().lower()
+    return "user_history_risk" in hist or "manual_review_required" in hist
 
 
 def run_pipeline(
@@ -37,26 +33,15 @@ def run_pipeline(
     client: GeminiClient,
     cache: AnalysisCache,
 ) -> PredictionRow:
-    # Stage 1 - parse the claim (cached in live mode)
     parsed = parse_claim(record.claim_object, record.user_claim, client, cache)
 
-    # Stage 2 - analyze each image (cached/deduped)
     findings = analyze_images(
         record.image_path_list, record.claim_object, parsed, client, cache
     )
 
-    # Stage 3 - decision. Use the cross-image LLM decider only when it adds
-    # value (multi-image, injection, or authenticity concerns) - this saves
-    # calls (free-tier RPM) and keeps simple single-image cases on the fast,
-    # reliable deterministic path. Otherwise use the deterministic rule layer
-    # (also the mock-mode path).
-    if config.USE_DECIDER and not client.mock and _needs_decider(parsed, findings):
-        decision = run_decider(record.claim_object, parsed, findings,
-                               requirements, client, cache)
-    else:
-        decision = decide(record.claim_object, parsed, findings, requirements)
+    decision = decide(record.claim_object, parsed, findings, requirements,
+                       user_history_risky=_history_risky(history.get(record.user_id)))
 
-    # Stage 4 - user-history risk overlay (context only)
     risk_flags = apply_user_history(
         record.user_id, history, decision.risk_flags, decision.claim_status
     )

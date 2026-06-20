@@ -1,51 +1,48 @@
-"""Tests for pipeline/image_analysis.py - per-image findings + caching."""
+"""Tests for pipeline/image_analysis.py - per-image chain findings + caching."""
 from llm.cache import AnalysisCache
 from llm.gemini_client import GeminiClient
 from pipeline.claim_parser import ParsedClaim
 from pipeline.image_analysis import analyze_image, analyze_images, ImageFinding
 
 
-def _parsed():
-    return ParsedClaim(claimed_parts=["rear_bumper"], claimed_issue="dent")
+def _parsed(parts=("rear_bumper",)):
+    return ParsedClaim(claimed_parts=list(parts), claimed_issue="dent",
+                       claimed_severity="medium")
 
 
 def test_missing_image_flagged(tmp_path):
-    client = GeminiClient()
-    cache = AnalysisCache(cache_dir=tmp_path)
-    f = analyze_image("images/test/case_999/does_not_exist.jpg", "car",
-                      _parsed(), client, cache)
-    assert f.missing is True
-    assert f.image_id == "does_not_exist"
+    f = analyze_image("images/test/case_999/none.jpg", "car", _parsed(),
+                      GeminiClient(), AnalysisCache(cache_dir=tmp_path))
+    assert f.missing is True and f.image_id == "none"
 
 
 def test_real_image_mock_finding(tmp_path):
-    client = GeminiClient()
-    cache = AnalysisCache(cache_dir=tmp_path)
     f = analyze_image("images/test/case_001/img_1.jpg", "car", _parsed(),
-                      client, cache)
-    assert isinstance(f, ImageFinding)
-    assert f.missing is False
-    assert f.image_id == "img_1"
-    # mock returns neutral, non-committal analysis
-    assert f.claimed_issue_present == "unclear"
+                      GeminiClient(), AnalysisCache(cache_dir=tmp_path))
+    assert isinstance(f, ImageFinding) and f.missing is False
     assert f.object_match == "unclear"
-    assert f.usable_for_review is False
+    assert f.severity_vs_claim == "unclear"
+    # mock builds a verdict per claimed part
+    assert f.parts and f.parts[0].part == "rear_bumper"
+    assert f.parts[0].issue_present == "unclear"
 
 
-def test_cache_is_populated_after_analysis(tmp_path):
-    client = GeminiClient()
+def test_verdict_for_lookup(tmp_path):
+    f = analyze_image("images/test/case_001/img_1.jpg", "car",
+                      _parsed(parts=("rear_bumper", "door")), GeminiClient(),
+                      AnalysisCache(cache_dir=tmp_path))
+    assert f.verdict_for("door") is not None
+    assert f.verdict_for("nonexistent") is not None  # falls back to first
+
+
+def test_cache_populated(tmp_path):
     cache = AnalysisCache(cache_dir=tmp_path)
-    analyze_image("images/test/case_001/img_1.jpg", "car", _parsed(), client, cache)
-    # second call should read from cache (file present in cache dir)
+    analyze_image("images/test/case_001/img_1.jpg", "car", _parsed(), GeminiClient(), cache)
     assert any(tmp_path.iterdir())
 
 
 def test_analyze_images_multi(tmp_path):
-    client = GeminiClient()
-    cache = AnalysisCache(cache_dir=tmp_path)
-    findings = analyze_images(
+    fs = analyze_images(
         ["images/test/case_004/img_1.jpg", "images/test/case_004/img_2.jpg"],
-        "car", _parsed(), client, cache,
-    )
-    assert len(findings) == 2
-    assert {f.image_id for f in findings} == {"img_1", "img_2"}
+        "car", _parsed(), GeminiClient(), AnalysisCache(cache_dir=tmp_path))
+    assert {f.image_id for f in fs} == {"img_1", "img_2"}

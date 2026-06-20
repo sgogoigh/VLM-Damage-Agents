@@ -49,16 +49,40 @@ def normalize_issue(raw: str) -> str:
     t = (raw or "").strip().lower().replace("-", " ").replace(" ", "_")
     if t in ISSUE_TYPES:
         return t
+    # common synonyms -> vocab
+    syn = {"broken": "broken_part", "missing": "missing_part", "shattered": "glass_shatter",
+           "shatter": "glass_shatter", "torn": "torn_packaging", "crushed": "crushed_packaging",
+           "water": "water_damage", "liquid": "water_damage", "wet": "water_damage"}
+    for k, v in syn.items():
+        if k in t:
+            return v
     for i in ISSUE_TYPES:
         if i not in ("none", "unknown") and i in t:
             return i
     return raw  # keep free text (still useful as VLM context)
 
 
+_SEV_HIGH = ("shatter", "shattered", "badly", "severe", "deep", "destroyed",
+             "smashed", "totaled", "completely", "broken", "spreading")
+_SEV_LOW = ("small", "minor", "light", "slight", "tiny", "hairline", "little",
+            "scrape", "scratch")
+
+
+def severity_hint(text: str) -> str:
+    """Deterministic fallback: infer claimed severity from wording."""
+    t = (text or "").lower()
+    if any(w in t for w in _SEV_HIGH):
+        return "high"
+    if any(w in t for w in _SEV_LOW):
+        return "low"
+    return "unspecified"
+
+
 @dataclass
 class ParsedClaim:
     claimed_parts: list[str] = field(default_factory=list)
     claimed_issue: str = "unknown"
+    claimed_severity: str = "unspecified"
     multi_part: bool = False
     injection_detected: bool = False
     summary: str = ""
@@ -72,6 +96,7 @@ def _heuristic_parse(claim_object: str, user_claim: str) -> ParsedClaim:
     return ParsedClaim(
         claimed_parts=parts or ["unknown"],
         claimed_issue=issues[0] if issues else "unknown",
+        claimed_severity=severity_hint(user_claim),
         multi_part=len(parts) > 1,
         injection_detected=detect_injection(user_claim),
         summary="(mock) heuristic parse of transcript",
@@ -89,6 +114,7 @@ def parse_claim(
         return {
             "claimed_parts": p.claimed_parts,
             "claimed_issue": p.claimed_issue,
+            "claimed_severity": p.claimed_severity,
             "multi_part": p.multi_part,
             "injection_detected": p.injection_detected,
             "summary": p.summary,
@@ -112,9 +138,13 @@ def parse_claim(
     injection = bool(data.get("injection_detected", False)) or detect_injection(user_claim)
     raw_parts = data.get("claimed_parts") or ["unknown"]
     norm_parts = [normalize_part(p, claim_object) for p in raw_parts] or ["unknown"]
+    severity = str(data.get("claimed_severity", "") or "").strip().lower()
+    if severity not in ("low", "medium", "high"):
+        severity = severity_hint(user_claim)
     return ParsedClaim(
         claimed_parts=norm_parts,
         claimed_issue=normalize_issue(data.get("claimed_issue", "unknown")),
+        claimed_severity=severity,
         multi_part=bool(data.get("multi_part", False)),
         injection_detected=injection,
         summary=data.get("summary", ""),

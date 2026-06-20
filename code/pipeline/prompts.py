@@ -31,4 +31,3 @@ def render(template: str, **fields: str) -> str:
 
 IMAGE_ANALYSIS_TEMPLATE, IMAGE_ANALYSIS_VERSION = load("image_analysis")
 CLAIM_PARSER_TEMPLATE, CLAIM_PARSER_VERSION = load("claim_parser")
-DECIDER_TEMPLATE, DECIDER_VERSION = load("decider")

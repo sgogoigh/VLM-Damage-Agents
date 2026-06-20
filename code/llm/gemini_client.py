@@ -30,6 +30,32 @@ _RATE_LOCK = threading.Lock()
 _RETRY_DELAY_RE = re.compile(r"retry(?:Delay)?['\"]?[:\s]+['\"]?([\d.]+)s", re.IGNORECASE)
 
 
+def detect_mime(image_bytes: bytes) -> str:
+    """Sniff the real image format from magic bytes.
+
+    Many dataset files have a .jpg extension but are actually PNG / WEBP / AVIF.
+    Sending the wrong mime_type to the VLM can cause it to reject or misread the
+    image, so we detect the true type from the content.
+    """
+    b = image_bytes[:16]
+    if b[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if b[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if b[:4] == b"RIFF" and b[8:12] == b"WEBP":
+        return "image/webp"
+    if b[4:8] == b"ftyp":
+        brand = b[8:12]
+        if brand[:2] == b"av":   # avif / avis
+            return "image/avif"
+        if brand in (b"heic", b"heix", b"mif1", b"heim", b"hevc"):
+            return "image/heic"
+        return "image/jpeg"      # fallback for other ISO-BMFF brands
+    if b[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    return "image/jpeg"
+
+
 class GeminiClient:
     def __init__(self, model: str | None = None) -> None:
         self.model = model or config.GEMINI_MODEL
@@ -114,7 +140,7 @@ class GeminiClient:
         client = self._ensure_sdk()
         contents: list[Any] = [prompt]
         for img in image_bytes_list:
-            contents.append(types.Part.from_bytes(data=img, mime_type="image/jpeg"))
+            contents.append(types.Part.from_bytes(data=img, mime_type=detect_mime(img)))
 
         # Gemini 3.x: temperature/top_p/top_k are removed; use thinking_level.
         # low/minimal => deterministic + low-latency JSON extraction.

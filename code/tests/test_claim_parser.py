@@ -50,6 +50,21 @@ def test_parse_claim_uses_mock_in_mock_mode():
     assert parsed.claimed_issue == "crack"
 
 
+def test_severity_hint():
+    from pipeline.claim_parser import severity_hint
+    assert severity_hint("the windshield is badly shattered") == "high"
+    assert severity_hint("a small minor scratch") == "low"
+    assert severity_hint("there is a dent") == "unspecified"
+
+
+def test_normalize_issue_synonyms():
+    from pipeline.claim_parser import normalize_issue
+    assert normalize_issue("broken") == "broken_part"
+    assert normalize_issue("shattered") == "glass_shatter"
+    assert normalize_issue("liquid damage") == "water_damage"
+    assert normalize_issue("dent") == "dent"
+
+
 def test_parse_claim_accepts_optional_cache(tmp_path):
     from llm.cache import AnalysisCache
     client = GeminiClient()

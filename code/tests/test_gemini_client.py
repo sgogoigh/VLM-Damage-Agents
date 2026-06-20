@@ -6,6 +6,15 @@ import pytest
 from llm.gemini_client import GeminiClient
 
 
+def test_detect_mime_sniffs_real_format():
+    from llm.gemini_client import detect_mime
+    assert detect_mime(b"\xff\xd8\xff\xe0blah") == "image/jpeg"
+    assert detect_mime(b"\x89PNG\r\n\x1a\n....") == "image/png"
+    assert detect_mime(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == "image/webp"
+    assert detect_mime(b"\x00\x00\x00\x1cftypavif\x00\x00\x00\x00") == "image/avif"
+    assert detect_mime(b"randomgarbage") == "image/jpeg"  # safe fallback
+
+
 def test_mock_mode_returns_factory_value():
     client = GeminiClient()
     assert client.mock is True
