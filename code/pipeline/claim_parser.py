@@ -10,7 +10,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-import config
 from llm.cache import AnalysisCache
 from llm.gemini_client import GeminiClient
 from pipeline import prompts
@@ -125,7 +124,8 @@ def parse_claim(
         claim_object=claim_object, user_claim=user_claim,
     )
     # Cache live parses (text-only) so re-runs don't re-spend the call.
-    cache_ns = f"{prompts.CLAIM_PARSER_VERSION}|{config.GEMINI_MODEL}"
+    # Namespace by the actual client model so providers don't share parse cache.
+    cache_ns = f"{prompts.CLAIM_PARSER_VERSION}|{client.model}"
     key_bytes = f"{claim_object}\n{user_claim}".encode("utf-8")
     data = None
     if cache is not None and not client.mock:

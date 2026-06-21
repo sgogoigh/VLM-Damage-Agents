@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import config
 from data_io import image_id_from_path, resolve_image_path
 from llm.cache import AnalysisCache
 from llm.gemini_client import GeminiClient
@@ -86,8 +85,11 @@ def analyze_image(
                             notes="image file not found")
 
     image_bytes = abs_path.read_bytes()
+    # Namespace the cache by the ACTUAL client model (not a hardcoded Gemini
+    # model) so Gemini and Claude analyses never collide. For the default Gemini
+    # client this is the same string as before, so existing cache stays valid.
     cache_ns = (
-        f"{prompts.IMAGE_ANALYSIS_VERSION}|{config.GEMINI_MODEL}|"
+        f"{prompts.IMAGE_ANALYSIS_VERSION}|{client.model}|"
         f"{'mock' if client.mock else 'live'}"
     )
 

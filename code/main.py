@@ -31,8 +31,8 @@ from data_io import (
     read_user_history,
     write_output,
 )
+from llm import make_client
 from llm.cache import AnalysisCache
-from llm.gemini_client import GeminiClient
 from pipeline import run_pipeline
 
 
@@ -46,15 +46,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="process only the first N rows (0 = all)")
     p.add_argument("--resume", action="store_true",
                    help="skip rows already present in --output and append the rest")
+    p.add_argument("--provider", choices=["gemini", "claude"], default="gemini",
+                   help="VLM provider for the perception layer (default: gemini)")
     return p.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
     print(f"[config] {config.summary()}", file=sys.stderr)
-    if config.MOCK_MODE:
-        print("[mode] MOCK_MODE - no API calls; output is placeholder analysis.",
-              file=sys.stderr)
 
     records = read_claims(args.input)
     if args.limit:
@@ -62,7 +61,11 @@ def main(argv: list[str]) -> int:
     history = read_user_history()
     requirements = read_evidence_requirements()
 
-    client = GeminiClient()
+    client = make_client(args.provider)
+    print(f"[provider] {args.provider}", file=sys.stderr)
+    if client.mock:
+        print("[mode] MOCK_MODE - no API calls; output is placeholder analysis "
+              "(no API key for this provider).", file=sys.stderr)
     cache = AnalysisCache()
 
     # Resume support: completed rows are written in input order, so we can skip

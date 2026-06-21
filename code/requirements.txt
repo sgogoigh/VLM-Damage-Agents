@@ -3,5 +3,8 @@
 # The scaffold runs in MOCK_MODE with only the stdlib + python-dotenv.
 
 python-dotenv>=1.0.0      # load .env (optional but recommended)
-google-genai>=0.3.0       # Gemini SDK (needed only for live calls)
-Pillow>=10.0.0            # image loading / optional preprocessing
+google-genai>=0.3.0       # Gemini SDK (needed only for live Gemini calls)
+anthropic>=0.40.0         # Claude SDK (needed only for live --provider claude calls)
+Pillow>=10.0.0            # image loading / preprocessing (format normalize + resize)
+pillow-heif>=0.16.0       # optional: lets Pillow decode the few AVIF/HEIC dataset
+                          # images (mislabeled .jpg) so the Claude path can re-encode them

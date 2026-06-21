@@ -70,6 +70,27 @@ MOCK_MODE = _FORCE_MOCK or not GEMINI_API_KEY
 
 
 # ---------------------------------------------------------------------------
+# Anthropic / Claude (optional alternative VLM provider — see llm/claude_client.py)
+# Lets the same pipeline run with Claude as the VLM by swapping the client at the
+# entry point (`--provider claude`). Mirrors the Gemini knobs above.
+# ---------------------------------------------------------------------------
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
+
+# Default to Claude Opus 4.8 — the most capable, vision-capable Opus model.
+# (Opus 4.8 has no temperature/top_p and uses adaptive thinking only; we omit
+# thinking for cheap, low-variance JSON extraction. See llm/claude_client.py.)
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-4-8").strip()
+
+# Output cap for the structured-JSON responses (small JSON, so this is plenty).
+CLAUDE_MAX_TOKENS = int(os.getenv("CLAUDE_MAX_TOKENS", "2048"))
+
+# Like MOCK_MODE for Gemini: Claude runs offline with deterministic stubs unless
+# an ANTHROPIC_API_KEY is set (or LLM_MOCK forces it). This is what lets the
+# Claude path be wired up and demoed WITHOUT a key.
+CLAUDE_MOCK = _FORCE_MOCK or not ANTHROPIC_API_KEY
+
+
+# ---------------------------------------------------------------------------
 # Rate-limit / cost knobs (free-tier Gemini is RPM/RPD limited; see report)
 # ---------------------------------------------------------------------------
 MAX_CONCURRENCY = int(os.getenv("MAX_CONCURRENCY", "4"))

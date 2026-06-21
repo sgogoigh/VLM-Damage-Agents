@@ -22,6 +22,10 @@ LLM_MOCK=1 python code/main.py --input dataset/sample_claims.csv --output out_sa
 # Evaluate against labeled sample set:
 LLM_MOCK=1 python code/evaluation/main.py
 
+# Evaluate with Claude (Opus 4.8) as the VLM instead of Gemini:
+#   runs in mock mode unless ANTHROPIC_API_KEY is set (handy for a demo).
+python code/evaluation/main.py --provider claude
+
 # Run the test suite (forced mock mode, no network):
 python -m pytest code/tests/ -q
 
@@ -82,10 +86,16 @@ pipeline/
 
 | Var | Purpose |
 |---|---|
-| `GEMINI_API_KEY` | Gemini key (live mode). Missing key ⇒ MOCK_MODE. |
+| `GEMINI_API_KEY` | Gemini key (live mode). Missing key ⇒ Gemini MOCK_MODE. |
 | `GEMINI_MODEL` | model id (default `gemini-2.0-flash`) |
-| `LLM_MOCK` | `1` to force offline mock mode |
+| `ANTHROPIC_API_KEY` | Claude key for `--provider claude`. Missing key ⇒ Claude MOCK_MODE. |
+| `CLAUDE_MODEL` | Claude model id (default `claude-opus-4-8`) |
+| `LLM_MOCK` | `1` to force offline mock mode (both providers) |
 | `MAX_CONCURRENCY`, `MAX_RETRIES` | throughput / resilience knobs |
+
+Both `main.py` and `evaluation/main.py` accept `--provider {gemini,claude}`. The
+provider is decided at the entry point; the pipeline is provider-agnostic because
+both clients expose the same `generate_json(...)` interface (`llm/make_client`).
 
 ## Output
 14 columns in the exact order from `problem_statement.md`, lowercase
