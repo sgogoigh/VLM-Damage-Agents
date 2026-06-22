@@ -22,8 +22,8 @@ import argparse
 import sys
 from pathlib import Path
 
-import config
-from data_io import (
+from code import config
+from code.data_io import (
     append_output_row,
     count_output_rows,
     read_claims,

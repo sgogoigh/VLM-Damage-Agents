@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import sys; sys.path.insert\\(0,'.'\\); import app.main; print\\('IMPORT OK'\\)\")",
+      "Bash(pip show *)",
+      "Bash(git check-ignore *)",
+      "Bash(python -m pytest)",
+      "Bash(RUN_LIVE=1 python -m pytest -m live -s)",
+      "Bash(python -c ' *)",
+      "Bash(python -m uvicorn app.main:app --port 8137 --log-level warning)",
+      "Bash(curl -s http://127.0.0.1:8137/)",
+      "Bash(break)",
+      "Bash(curl -s http://127.0.0.1:8137/api/health)",
+      "Bash(curl -s http://127.0.0.1:8137/api/providers)",
+      "Bash(curl -s -X POST http://127.0.0.1:8137/api/verify -H \"Content-Type: application/json\" -d '{\"user_id\":\"user_001\",\"claim_object\":\"car\",\"user_claim\":\"Customer: The rear bumper has a dent after parking. Photo attached.\",\"image_paths\":[\"images/sample/case_001/img_1.jpg\"],\"provider\":\"gemini\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X POST http://127.0.0.1:8137/api/verify -H \"Content-Type: application/json\" -d '{\"user_id\":\"u\",\"claim_object\":\"car\",\"user_claim\":\"dent\",\"image_paths\":[\"images/test/case_999/img_1.jpg\"]}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X POST http://127.0.0.1:8137/api/verify -H \"Content-Type: application/json\" -d '{\"user_id\":\"u\",\"claim_object\":\"boat\",\"user_claim\":\"x\",\"image_paths\":[\"a.jpg\"]}')"
+    ]
+  }
+}

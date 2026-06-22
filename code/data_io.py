@@ -10,12 +10,8 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from config import (
-    EVIDENCE_REQUIREMENTS_CSV,
-    IMAGES_ROOT,
-    USER_HISTORY_CSV,
-)
-from schema import OUTPUT_COLUMNS, ClaimRecord, PredictionRow
+from code import config
+from code.schema import OUTPUT_COLUMNS, ClaimRecord, PredictionRow
 
 
 def read_claims(csv_path: Path) -> list[ClaimRecord]:
@@ -40,7 +36,7 @@ def read_sample_with_labels(csv_path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def read_user_history(csv_path: Path = USER_HISTORY_CSV) -> dict[str, dict[str, str]]:
+def read_user_history(csv_path: Path = config.USER_HISTORY_CSV) -> dict[str, dict[str, str]]:
     """user_id -> history row."""
     history: dict[str, dict[str, str]] = {}
     with open(csv_path, newline="", encoding="utf-8") as f:
@@ -52,7 +48,7 @@ def read_user_history(csv_path: Path = USER_HISTORY_CSV) -> dict[str, dict[str, 
 
 
 def read_evidence_requirements(
-    csv_path: Path = EVIDENCE_REQUIREMENTS_CSV,
+    csv_path: Path = config.EVIDENCE_REQUIREMENTS_CSV,
 ) -> list[dict[str, str]]:
     """List of requirement rules (requirement_id, claim_object, applies_to, ...)."""
     with open(csv_path, newline="", encoding="utf-8") as f:
@@ -61,7 +57,7 @@ def read_evidence_requirements(
 
 def resolve_image_path(rel_path: str) -> Path:
     """Resolve a CSV image path (e.g. 'images/test/case_001/img_1.jpg')."""
-    return (IMAGES_ROOT / rel_path).resolve()
+    return (config.IMAGES_ROOT / rel_path).resolve()
 
 
 def image_id_from_path(rel_path: str) -> str:

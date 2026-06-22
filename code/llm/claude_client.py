@@ -51,7 +51,7 @@ import io
 import time
 from typing import Any
 
-import config
+from code import config
 # Reuse the Gemini wrapper's helpers so behavior is identical across providers:
 #   detect_mime  -> sniff the true image type from magic bytes (many dataset
 #                   files are mislabeled .jpg); maps 1:1 to Anthropic media_type.

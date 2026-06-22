@@ -8,4 +8,4 @@ Four-stage claim-verification pipeline:
 
 The orchestrator `run_pipeline` ties them together for one ClaimRecord.
 """
-from pipeline.orchestrator import run_pipeline  # noqa: F401
+from code.pipeline.orchestrator import run_pipeline  # noqa: F401

@@ -9,13 +9,13 @@ PredictionRow.
 """
 from __future__ import annotations
 
-from llm.cache import AnalysisCache
-from llm.gemini_client import GeminiClient
-from pipeline.claim_parser import parse_claim
-from pipeline.decision import decide
-from pipeline.image_analysis import analyze_images
-from pipeline.risk import apply_user_history
-from schema import ClaimRecord, PredictionRow
+from code.llm.cache import AnalysisCache
+from code.llm.gemini_client import GeminiClient
+from code.pipeline.claim_parser import parse_claim
+from code.pipeline.decision import decide
+from code.pipeline.image_analysis import analyze_images
+from code.pipeline.risk import apply_user_history
+from code.schema import ClaimRecord, PredictionRow
 
 
 def _history_risky(history_row: dict | None) -> bool:

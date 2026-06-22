@@ -20,7 +20,7 @@ import time
 from collections import deque
 from typing import Any
 
-import config
+from code import config
 
 # Shared across all client instances: timestamps (monotonic secs) of recent
 # live calls, used to throttle to GEMINI_RPM requests per rolling 60s window.

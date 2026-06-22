@@ -18,9 +18,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pipeline.claim_parser import ParsedClaim
-from pipeline.image_analysis import ImageFinding, PartVerdict
-from schema import OBJECT_PARTS
+from code.pipeline.claim_parser import ParsedClaim
+from code.pipeline.image_analysis import ImageFinding, PartVerdict
+from code.schema import OBJECT_PARTS
 
 _SEV_ORDER = {"none": 0, "unknown": 0, "low": 1, "medium": 2, "high": 3}
 _COSMETIC = {"scratch", "stain", "dent"}

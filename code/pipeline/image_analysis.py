@@ -11,11 +11,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from data_io import image_id_from_path, resolve_image_path
-from llm.cache import AnalysisCache
-from llm.gemini_client import GeminiClient
-from pipeline.claim_parser import ParsedClaim
-from schema import ISSUE_TYPES, OBJECT_PARTS
+from code.data_io import image_id_from_path, resolve_image_path
+from code.llm.cache import AnalysisCache
+from code.llm.gemini_client import GeminiClient
+from code.pipeline.claim_parser import ParsedClaim
+from code.schema import ISSUE_TYPES, OBJECT_PARTS
 
 
 @dataclass

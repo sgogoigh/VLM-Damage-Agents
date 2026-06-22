@@ -18,9 +18,9 @@ def make_client(provider: str = "gemini"):
     """
     name = (provider or "gemini").strip().lower()
     if name == "claude":
-        from llm.claude_client import ClaudeClient
+        from code.llm.claude_client import ClaudeClient
 
         return ClaudeClient()
-    from llm.gemini_client import GeminiClient
+    from code.llm.gemini_client import GeminiClient
 
     return GeminiClient()

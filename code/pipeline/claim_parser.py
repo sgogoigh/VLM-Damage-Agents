@@ -10,10 +10,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from llm.cache import AnalysisCache
-from llm.gemini_client import GeminiClient
-from pipeline import prompts
-from schema import ISSUE_TYPES, OBJECT_PARTS
+from code.llm.cache import AnalysisCache
+from code.llm.gemini_client import GeminiClient
+from code.pipeline import prompts
+from code.schema import ISSUE_TYPES, OBJECT_PARTS
 
 # Deterministic prompt-injection / instruction detector (defense in depth: the
 # LLM is also told to flag these, but we never want to depend on that alone).

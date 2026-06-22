@@ -1,0 +1,22 @@
+# Orchestrate claim-verifier backend — runtime + test dependencies.
+# The service runs end-to-end in MOCK_MODE with only the web stack installed;
+# the provider SDKs and image libs are needed only for live VLM calls.
+
+# --- web / API ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.8.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.0
+
+# --- VLM providers (live mode) ---
+google-genai>=0.3.0       # Gemini SDK (default operational provider)
+anthropic>=0.40.0         # Claude SDK (optional --provider claude)
+
+# --- image handling (live mode) ---
+Pillow>=10.0.0            # format normalize + resize for the Claude vision path
+pillow-heif>=0.16.0       # optional: decode AVIF/HEIC dataset images mislabeled .jpg
+
+# --- tests ---
+pytest>=8.0.0
+httpx>=0.27.0             # required by fastapi.testclient

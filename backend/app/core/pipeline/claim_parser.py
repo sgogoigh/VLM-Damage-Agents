@@ -1,0 +1,152 @@
+"""
+Stage 1 — parse the claimed part(s) and issue from the chat transcript.
+
+In mock mode this uses a light keyword heuristic so the pipeline is testable
+offline. In live mode it calls the VLM (text-only) with the claim_parser prompt.
+Text-only keeps this stage cheap. A deterministic prompt-injection detector runs
+regardless of provider (defense in depth).
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+from app.core import prompts
+from app.core.cache import AnalysisCache
+from app.core.contract import ISSUE_TYPES, OBJECT_PARTS
+from app.core.llm.base import BaseLLMClient
+
+# Deterministic prompt-injection / instruction detector (the LLM is also told to
+# flag these, but we never depend on that alone).
+_INJECTION_PATTERNS = [
+    r"ignore (all|any|previous)", r"approve (the|this|my)? ?claim",
+    r"mark (this|it|the row)", r"skip manual review", r"follow the note",
+    r"note (says|bole|kehti)", r"approve kar", r"supported with",
+    r"accept (this|it) quickly", r"reopen", r"escalate publicly",
+]
+_INJECTION_RE = re.compile("|".join(_INJECTION_PATTERNS), re.IGNORECASE)
+
+
+def detect_injection(text: str) -> bool:
+    """True if the claim text contains reviewer-manipulation/instruction phrases."""
+    return bool(_INJECTION_RE.search(text or ""))
+
+
+def normalize_part(raw: str, claim_object: str) -> str:
+    """Map a free-text part (e.g. 'rear bumper') to the allowed vocab token."""
+    parts = OBJECT_PARTS.get(claim_object, set())
+    t = (raw or "").strip().lower().replace("-", " ").replace(" ", "_")
+    if t in parts:
+        return t
+    for p in parts:                      # partial/substring match
+        if p != "unknown" and (p in t or t in p):
+            return p
+    return t  # leave cleaned; schema coercion maps unknowns to 'unknown'
+
+
+def normalize_issue(raw: str) -> str:
+    """Map a free-text issue to an allowed issue token when possible."""
+    t = (raw or "").strip().lower().replace("-", " ").replace(" ", "_")
+    if t in ISSUE_TYPES:
+        return t
+    syn = {"broken": "broken_part", "missing": "missing_part", "shattered": "glass_shatter",
+           "shatter": "glass_shatter", "torn": "torn_packaging", "crushed": "crushed_packaging",
+           "water": "water_damage", "liquid": "water_damage", "wet": "water_damage"}
+    for k, v in syn.items():
+        if k in t:
+            return v
+    for i in ISSUE_TYPES:
+        if i not in ("none", "unknown") and i in t:
+            return i
+    return raw  # keep free text (still useful as VLM context)
+
+
+_SEV_HIGH = ("shatter", "shattered", "badly", "severe", "deep", "destroyed",
+             "smashed", "totaled", "completely", "broken", "spreading")
+_SEV_LOW = ("small", "minor", "light", "slight", "tiny", "hairline", "little",
+            "scrape", "scratch")
+
+
+def severity_hint(text: str) -> str:
+    """Deterministic fallback: infer claimed severity from wording."""
+    t = (text or "").lower()
+    if any(w in t for w in _SEV_HIGH):
+        return "high"
+    if any(w in t for w in _SEV_LOW):
+        return "low"
+    return "unspecified"
+
+
+@dataclass
+class ParsedClaim:
+    claimed_parts: list[str] = field(default_factory=list)
+    claimed_issue: str = "unknown"
+    claimed_severity: str = "unspecified"
+    multi_part: bool = False
+    injection_detected: bool = False
+    summary: str = ""
+
+
+def _heuristic_parse(claim_object: str, user_claim: str) -> ParsedClaim:
+    """Deterministic offline fallback used in mock mode."""
+    text = user_claim.lower()
+    parts = [p for p in OBJECT_PARTS.get(claim_object, set())
+             if p != "unknown" and p.replace("_", " ") in text]
+    issues = [i for i in ISSUE_TYPES if i not in {"none", "unknown"} and i.replace("_", " ") in text]
+    return ParsedClaim(
+        claimed_parts=parts or ["unknown"],
+        claimed_issue=issues[0] if issues else "unknown",
+        claimed_severity=severity_hint(user_claim),
+        multi_part=len(parts) > 1,
+        injection_detected=detect_injection(user_claim),
+        summary="(mock) heuristic parse of transcript",
+    )
+
+
+def parse_claim(
+    claim_object: str,
+    user_claim: str,
+    client: BaseLLMClient,
+    cache: AnalysisCache | None = None,
+) -> ParsedClaim:
+    def _mock(_prompt: str, _imgs):
+        p = _heuristic_parse(claim_object, user_claim)
+        return {
+            "claimed_parts": p.claimed_parts,
+            "claimed_issue": p.claimed_issue,
+            "claimed_severity": p.claimed_severity,
+            "multi_part": p.multi_part,
+            "injection_detected": p.injection_detected,
+            "summary": p.summary,
+        }
+
+    prompt = prompts.render(
+        prompts.CLAIM_PARSER_TEMPLATE,
+        claim_object=claim_object, user_claim=user_claim,
+    )
+    # Cache live parses (text-only). Namespace by the actual client model so
+    # providers don't share parse cache.
+    cache_ns = f"{prompts.CLAIM_PARSER_VERSION}|{client.model}"
+    key_bytes = f"{claim_object}\n{user_claim}".encode("utf-8")
+    data = None
+    if cache is not None and not client.mock:
+        data = cache.get(key_bytes, cache_ns)
+    if data is None:
+        data = client.generate_json(prompt, mock_factory=_mock)
+        if cache is not None and not client.mock:
+            cache.put(key_bytes, cache_ns, data)
+
+    injection = bool(data.get("injection_detected", False)) or detect_injection(user_claim)
+    raw_parts = data.get("claimed_parts") or ["unknown"]
+    norm_parts = [normalize_part(p, claim_object) for p in raw_parts] or ["unknown"]
+    severity = str(data.get("claimed_severity", "") or "").strip().lower()
+    if severity not in ("low", "medium", "high"):
+        severity = severity_hint(user_claim)
+    return ParsedClaim(
+        claimed_parts=norm_parts,
+        claimed_issue=normalize_issue(data.get("claimed_issue", "unknown")),
+        claimed_severity=severity,
+        multi_part=bool(data.get("multi_part", False)),
+        injection_detected=injection,
+        summary=data.get("summary", ""),
+    )

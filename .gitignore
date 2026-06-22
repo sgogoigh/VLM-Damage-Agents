@@ -1,5 +1,6 @@
 # Ignore the .env file, which contains sensitive information
 .env
+backend/.env
 .env.example
 
 # Ignore the virtual environment directory
