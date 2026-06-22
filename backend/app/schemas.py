@@ -78,6 +78,23 @@ class BatchVerifyResponse(BaseModel):
     results: List[BatchItemResult]
 
 
+class SampleCase(BaseModel):
+    case_id: str
+    split: str                       # "sample" (labeled) | "test" (unlabeled)
+    user_id: str
+    claim_object: str
+    user_claim: str
+    image_paths: List[str]
+    labeled: bool
+    expected: Optional[dict] = None  # ground-truth output columns (sample split only)
+
+
+class SamplesResponse(BaseModel):
+    split: str
+    count: int
+    cases: List[SampleCase]
+
+
 class ProviderInfo(BaseModel):
     provider: str
     model: str

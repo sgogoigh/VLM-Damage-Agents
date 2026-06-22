@@ -14,7 +14,22 @@
       "Bash(curl -s http://127.0.0.1:8137/api/providers)",
       "Bash(curl -s -X POST http://127.0.0.1:8137/api/verify -H \"Content-Type: application/json\" -d '{\"user_id\":\"user_001\",\"claim_object\":\"car\",\"user_claim\":\"Customer: The rear bumper has a dent after parking. Photo attached.\",\"image_paths\":[\"images/sample/case_001/img_1.jpg\"],\"provider\":\"gemini\"}')",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X POST http://127.0.0.1:8137/api/verify -H \"Content-Type: application/json\" -d '{\"user_id\":\"u\",\"claim_object\":\"car\",\"user_claim\":\"dent\",\"image_paths\":[\"images/test/case_999/img_1.jpg\"]}')",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X POST http://127.0.0.1:8137/api/verify -H \"Content-Type: application/json\" -d '{\"user_id\":\"u\",\"claim_object\":\"boat\",\"user_claim\":\"x\",\"image_paths\":[\"a.jpg\"]}')"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X POST http://127.0.0.1:8137/api/verify -H \"Content-Type: application/json\" -d '{\"user_id\":\"u\",\"claim_object\":\"boat\",\"user_claim\":\"x\",\"image_paths\":[\"a.jpg\"]}')",
+      "Bash(npm --version)",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(python -m uvicorn app.main:app --port 8000 --log-level warning)",
+      "Bash(PORT=3000 npx next start -p 3000)",
+      "Bash(curl -s http://127.0.0.1:8000/)",
+      "Bash(curl -s http://127.0.0.1:3000/)",
+      "Bash(curl -s \"http://127.0.0.1:8000/api/samples?split=sample\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); c=d['cases'][0]; print\\('count=',d['count']\\); print\\('case_id=',c['case_id']\\); print\\('object=',c['claim_object']\\); print\\('imgs=',c['image_paths']\\); print\\('expected_status=',c['expected']['claim_status']\\)\")",
+      "Bash(curl -s -o /dev/null -w \"status=%{http_code} type=%{content_type} bytes=%{size_download}\\\\n\" \"http://127.0.0.1:8000/dataset/images/sample/case_001/img_1.jpg\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X OPTIONS \"http://127.0.0.1:8000/api/verify\" -H \"Origin: http://localhost:3000\" -H \"Access-Control-Request-Method: POST\" -H \"Access-Control-Request-Headers: content-type\" -D -)",
+      "Bash(curl -s -X POST \"http://127.0.0.1:8000/api/verify\" -H \"Content-Type: application/json\" -H \"Origin: http://localhost:3000\" -d '{\"user_id\":\"user_001\",\"claim_object\":\"car\",\"user_claim\":\"Customer: The rear bumper has a dent after parking. | Support: Anything else? | Customer: Just the rear bumper. Photo attached.\",\"image_paths\":[\"images/sample/case_001/img_1.jpg\"],\"provider\":\"gemini\"}')",
+      "Bash(python -m pytest -q)"
     ]
   }
 }

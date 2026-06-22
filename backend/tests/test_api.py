@@ -74,6 +74,43 @@ def test_verify_success_mock(client, settings):
     assert isinstance(pred["image_paths"], list)
 
 
+def test_samples_endpoint(client, settings):
+    if not settings.dataset_dir.exists():
+        return
+    r = client.get("/api/samples?split=sample")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["split"] == "sample"
+    assert body["count"] > 0
+    case = body["cases"][0]
+    assert case["labeled"] is True
+    assert case["expected"] is not None
+    assert isinstance(case["image_paths"], list) and case["image_paths"]
+    assert case["case_id"].startswith("sample/")
+
+
+def test_samples_split_validation(client):
+    r = client.get("/api/samples?split=bogus")
+    assert r.status_code == 422
+
+
+def test_samples_test_split_unlabeled(client, settings):
+    if not settings.dataset_dir.exists():
+        return
+    r = client.get("/api/samples?split=test")
+    assert r.status_code == 200
+    body = r.json()
+    assert all(c["labeled"] is False for c in body["cases"])
+
+
+def test_static_image_served(client, settings):
+    if not settings.dataset_dir.exists():
+        return
+    r = client.get("/dataset/images/sample/case_001/img_1.jpg")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("image/")
+
+
 def test_batch_isolates_failures(client, settings):
     if not settings.dataset_dir.exists():
         return

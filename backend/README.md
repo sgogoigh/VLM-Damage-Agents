@@ -9,6 +9,18 @@ evidence requirements.
 This service is fully self-contained — it does **not** depend on the sibling
 `code/` package. The entire pipeline is ported into `app/core/`.
 
+## Services at a glance
+
+| Service | What it does |
+|---|---|
+| **Claim verification** (`POST /api/verify`) | Runs the full pipeline on one claim and returns a schema-valid prediction. |
+| **Batch verification** (`POST /api/batch`) | Verifies many claims in one call; per-item failures are isolated. |
+| **Case library** (`GET /api/samples`) | Lists dataset cases (labeled `sample` + input-only `test`) for the UI / demos. |
+| **Evidence images** (`GET /dataset/...`) | Serves the dataset images statically so a UI can show thumbnails. |
+| **Provider directory** (`GET /api/providers`) | Lists providers with live/mock status and the active model. |
+| **Health** (`GET /api/health`) | Reports reachability, reference-data counts, and a secret-free config snapshot. |
+| **CLI batch runner** (`python -m app.cli`) | Same pipeline over a CSV → `output.csv` (incremental + resumable). |
+
 ## Why standalone
 
 The original `backend/` imported the sibling `code/` package. That package name
@@ -27,7 +39,7 @@ backend/
 │   ├── service.py         # ClaimVerifierService — caches deps + clients
 │   ├── cli.py             # batch runner: claims.csv -> output.csv
 │   ├── api/
-│   │   └── routes.py      # /health, /providers, /verify, /batch
+│   │   └── routes.py      # /health, /providers, /samples, /verify, /batch
 │   └── core/              # the standalone pipeline (no `code` dependency)
 │       ├── contract.py    # output columns + closed vocab + coercion
 │       ├── data_io.py     # CSV + image-path resolution
@@ -91,8 +103,11 @@ uvicorn app.main:app --reload --port 8000
 | GET | `/` | liveness + links |
 | GET | `/api/health` | health + reference-data counts + (secret-free) config |
 | GET | `/api/providers` | provider list with mock/operational status |
+| GET | `/api/samples?split=sample\|test\|all` | dataset cases for the UI's case browser (sample = labeled, test = input-only) |
 | POST | `/api/verify` | verify one claim |
 | POST | `/api/batch` | verify many claims (per-item failures isolated) |
+| GET | `/dataset/<image_path>` | static evidence images, e.g. `/dataset/images/sample/case_001/img_1.jpg` |
+| GET | `/docs` | interactive Swagger UI |
 
 #### `POST /api/verify`
 
@@ -108,6 +123,33 @@ uvicorn app.main:app --reload --port 8000
 
 `provider` is optional (defaults to the server's `DEFAULT_PROVIDER`).
 `image_paths` resolve against `DATASET_DIR` (default: the repo-level `dataset/`).
+
+#### `GET /api/samples`
+
+Returns dataset cases for a UI/case browser. `sample` rows carry ground-truth
+labels (`expected`); `test` rows are input-only.
+
+```jsonc
+{
+  "split": "sample",
+  "count": 20,
+  "cases": [
+    {
+      "case_id": "sample/case_001",
+      "split": "sample",
+      "user_id": "user_001",
+      "claim_object": "car",
+      "user_claim": "Customer: ... rear bumper has a dent ...",
+      "image_paths": ["images/sample/case_001/img_1.jpg"],
+      "labeled": true,
+      "expected": { "claim_status": "supported", "issue_type": "dent", "...": "..." }
+    }
+  ]
+}
+```
+
+CORS allows `http://localhost:3000` by default (configurable via `CORS_ORIGINS`),
+so the bundled `frontend/` can call the API directly from the browser.
 
 ## Batch CSV run (standalone replacement for `code/main.py`)
 

@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router as api_router
 from app.config import get_settings
@@ -69,6 +70,13 @@ def create_app() -> FastAPI:
                 "docs": "/docs", "api_prefix": settings.api_prefix}
 
     app.include_router(api_router, prefix=settings.api_prefix)
+
+    # Serve dataset images so the UI can render evidence thumbnails. Image paths
+    # in the CSVs (e.g. "images/sample/case_001/img_1.jpg") resolve under here:
+    #   GET /dataset/images/sample/case_001/img_1.jpg
+    # StaticFiles guards against path traversal. Mounted only if the dir exists.
+    if settings.dataset_dir.exists():
+        app.mount("/dataset", StaticFiles(directory=str(settings.dataset_dir)), name="dataset")
 
     @app.exception_handler(ValueError)
     async def _value_error_handler(_request, exc: ValueError):  # pragma: no cover

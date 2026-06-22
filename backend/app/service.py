@@ -13,12 +13,19 @@ the client and re-read both CSVs on every single request.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from app.config import Settings, get_settings
 from app.core.cache import AnalysisCache
-from app.core.contract import CLAIM_OBJECTS, ClaimRecord, PredictionRow
-from app.core.data_io import image_exists, read_evidence_requirements, read_user_history
+from app.core.contract import CLAIM_OBJECTS, OUTPUT_COLUMNS, ClaimRecord, PredictionRow
+from app.core.data_io import (
+    image_exists,
+    read_claims,
+    read_evidence_requirements,
+    read_sample_with_labels,
+    read_user_history,
+)
 from app.core.llm import PROVIDERS, make_client
 from app.core.llm.base import BaseLLMClient
 from app.core.pipeline import run_pipeline
@@ -129,6 +136,52 @@ class ClaimVerifierService:
                 "is_default": name == self.settings.default_provider,
             })
         return out
+
+    def list_cases(self, split: str = "sample") -> list[dict[str, Any]]:
+        """List demo cases from the dataset for the UI's case browser.
+
+        ``sample`` rows carry ground-truth labels (expected output); ``test``
+        rows are input-only. ``all`` returns both.
+        """
+        split = (split or "sample").strip().lower()
+        cases: list[dict[str, Any]] = []
+
+        if split in ("sample", "all"):
+            for i, row in enumerate(read_sample_with_labels(self.settings.sample_claims_csv)):
+                paths = [p.strip() for p in (row.get("image_paths") or "").split(";") if p.strip()]
+                expected = {c: row[c] for c in OUTPUT_COLUMNS if c in row}
+                cases.append({
+                    "case_id": self._case_id(paths, "sample", i),
+                    "split": "sample",
+                    "user_id": (row.get("user_id") or "").strip(),
+                    "claim_object": (row.get("claim_object") or "").strip().lower(),
+                    "user_claim": (row.get("user_claim") or "").strip(),
+                    "image_paths": paths,
+                    "labeled": True,
+                    "expected": expected,
+                })
+
+        if split in ("test", "all"):
+            for i, rec in enumerate(read_claims(self.settings.claims_csv)):
+                cases.append({
+                    "case_id": self._case_id(rec.image_path_list, "test", i),
+                    "split": "test",
+                    "user_id": rec.user_id,
+                    "claim_object": rec.claim_object,
+                    "user_claim": rec.user_claim,
+                    "image_paths": rec.image_path_list,
+                    "labeled": False,
+                    "expected": None,
+                })
+        return cases
+
+    @staticmethod
+    def _case_id(paths: list[str], split: str, index: int) -> str:
+        if paths:
+            parent = Path(paths[0]).parent.name
+            if parent:
+                return f"{split}/{parent}"
+        return f"{split}/{index:03d}"
 
     def health(self) -> dict[str, Any]:
         return {

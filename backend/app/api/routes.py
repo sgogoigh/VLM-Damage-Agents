@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 
 from app.schemas import (
@@ -21,6 +21,8 @@ from app.schemas import (
     HealthResponse,
     Provider,
     ProvidersResponse,
+    SampleCase,
+    SamplesResponse,
 )
 from app.service import ClaimVerifierService, ImageNotFoundError
 
@@ -47,6 +49,20 @@ async def providers(service: ClaimVerifierService = Depends(get_service)) -> Pro
     return ProvidersResponse(
         default_provider=service.settings.default_provider,
         providers=service.provider_status(),
+    )
+
+
+@router.get("/samples", response_model=SamplesResponse)
+async def samples(
+    split: str = Query("sample", pattern="^(sample|test|all)$"),
+    service: ClaimVerifierService = Depends(get_service),
+) -> SamplesResponse:
+    """Demo/test cases from the dataset, for the UI's case browser."""
+    cases = service.list_cases(split)
+    return SamplesResponse(
+        split=split,
+        count=len(cases),
+        cases=[SampleCase(**c) for c in cases],
     )
 
 
