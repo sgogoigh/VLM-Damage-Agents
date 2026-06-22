@@ -100,6 +100,29 @@ export const ImageIcon = (p: IconProps) => (
   </svg>
 );
 
+export const UploadIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 16V4" />
+    <path d="M7 9l5-5 5 5" />
+    <path d="M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" />
+  </svg>
+);
+
+export const RefreshIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 12a8 8 0 0 1 13.5-5.8L20 8" />
+    <path d="M20 4v4h-4" />
+    <path d="M20 12a8 8 0 0 1-13.5 5.8L4 16" />
+    <path d="M4 20v-4h4" />
+  </svg>
+);
+
+export const CloseIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
+
 export const OBJECT_ICON = {
   car: CarIcon,
   laptop: LaptopIcon,

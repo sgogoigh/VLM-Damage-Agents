@@ -7,8 +7,10 @@ keep the event loop responsive under concurrent requests.
 from __future__ import annotations
 
 import logging
+import uuid
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
 from app.schemas import (
@@ -23,6 +25,7 @@ from app.schemas import (
     ProvidersResponse,
     SampleCase,
     SamplesResponse,
+    UploadResponse,
 )
 from app.service import ClaimVerifierService, ImageNotFoundError
 
@@ -64,6 +67,34 @@ async def samples(
         count=len(cases),
         cases=[SampleCase(**c) for c in cases],
     )
+
+
+@router.post("/uploads", response_model=UploadResponse)
+async def upload_images(
+    files: list[UploadFile] = File(...),
+    service: ClaimVerifierService = Depends(get_service),
+) -> UploadResponse:
+    """Accept browser-selected image files, store them under the dataset root,
+    and return dataset-relative paths usable directly in `/api/verify` and
+    viewable via `/dataset/...`."""
+    token = uuid.uuid4().hex[:12]
+    dest_dir = service.settings.dataset_dir / "uploads" / token
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    paths: list[str] = []
+    for f in files:
+        if f.content_type and not f.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail=f"{f.filename!r} is not an image.")
+        safe = Path(f.filename or "upload.jpg").name or "upload.jpg"
+        data = await f.read()
+        if not data:
+            continue
+        (dest_dir / safe).write_bytes(data)
+        paths.append(f"uploads/{token}/{safe}")
+
+    if not paths:
+        raise HTTPException(status_code=400, detail="No image files were received.")
+    return UploadResponse(paths=paths)
 
 
 @router.post("/verify", response_model=ClaimVerifyResponse)

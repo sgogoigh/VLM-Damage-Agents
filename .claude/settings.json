@@ -29,7 +29,19 @@
       "Bash(curl -s -o /dev/null -w \"status=%{http_code} type=%{content_type} bytes=%{size_download}\\\\n\" \"http://127.0.0.1:8000/dataset/images/sample/case_001/img_1.jpg\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X OPTIONS \"http://127.0.0.1:8000/api/verify\" -H \"Origin: http://localhost:3000\" -H \"Access-Control-Request-Method: POST\" -H \"Access-Control-Request-Headers: content-type\" -D -)",
       "Bash(curl -s -X POST \"http://127.0.0.1:8000/api/verify\" -H \"Content-Type: application/json\" -H \"Origin: http://localhost:3000\" -d '{\"user_id\":\"user_001\",\"claim_object\":\"car\",\"user_claim\":\"Customer: The rear bumper has a dent after parking. | Support: Anything else? | Customer: Just the rear bumper. Photo attached.\",\"image_paths\":[\"images/sample/case_001/img_1.jpg\"],\"provider\":\"gemini\"}')",
-      "Bash(python -m pytest -q)"
+      "Bash(python -m pytest -q)",
+      "Bash(pip install *)",
+      "Bash(cd \"c:/Users/sgogo/OneDrive/Desktop/Hackerrank Orchastrate/hackerrank-orchestrate-june26/backend\" && python -m pytest 2>&1 | grep -iE \"[0-9]+ passed|[0-9]+ failed|error\" | tail -3; echo \"--- cleanup test uploads ---\"; rm -rf ../dataset/uploads 2>/dev/null; echo done)",
+      "Bash(curl -s -D - -o /dev/null \"http://127.0.0.1:8000/api/health\" -H \"Origin: http://localhost:3001\")",
+      "Bash(curl -s -D - -o /dev/null -X OPTIONS \"http://127.0.0.1:8000/api/verify\" -H \"Origin: http://localhost:3001\" -H \"Access-Control-Request-Method: POST\")",
+      "Bash(curl -s -X POST \"http://127.0.0.1:8000/api/uploads\" -H \"Origin: http://localhost:3001\" -F \"files=@/tmp/px.png;type=image/png\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('uploaded ->', d['paths']\\)\")",
+      "Bash(curl -s -X POST \"http://127.0.0.1:8000/api/uploads\" -H \"Origin: http://localhost:3001\" -F \"files=@dataset/images/sample/case_001/img_1.jpg;type=image/jpeg\" -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(curl -s -X POST \"http://127.0.0.1:8000/api/uploads\" -F \"files=@dataset/images/sample/case_001/img_1.jpg;type=image/jpeg\")",
+      "Bash(npx next *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\sgogo\\OneDrive\\Desktop\\Hackerrank Orchastrate\\dataset"
     ]
   }
 }

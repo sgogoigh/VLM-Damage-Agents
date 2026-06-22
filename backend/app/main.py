@@ -59,6 +59,10 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        # Accept any localhost / 127.0.0.1 port in development so the frontend
+        # works whether Next picks 3000, 3001, … (configurable origins above
+        # still apply for non-local deployments).
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
         allow_credentials=True,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],

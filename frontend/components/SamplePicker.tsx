@@ -13,7 +13,7 @@ interface Props {
 export default function SamplePicker({ cases, split, onSplit, onPick, loading }: Props) {
   return (
     <aside className="cd-rail">
-      <div className="cd-card">
+      <div className="cd-card cd-lib">
         <div className="cd-card-head">
           <ImageIcon size={17} />
           <h2>Case library</h2>

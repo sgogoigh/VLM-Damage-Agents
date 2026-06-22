@@ -15,7 +15,8 @@ import ChatThread from "./ChatThread";
 import Composer from "./Composer";
 import Header from "./Header";
 import SamplePicker from "./SamplePicker";
-import { AlertIcon } from "./icons";
+import StatusBar from "./StatusBar";
+import Toast from "./Toast";
 
 let _seq = 0;
 const uid = () => `m${++_seq}`;
@@ -31,7 +32,7 @@ const GREETING: ChatMessage[] = [
     id: uid(),
     kind: "text",
     role: "agent",
-    text: "Pick what was damaged, describe what happened, and attach a photo — then hit Verify. New here? Load a case from the library on the right to watch it work.",
+    text: "Pick what was damaged, describe what happened, and add a photo (Browse to upload, or load a case on the right) — then hit Verify.",
   },
 ];
 
@@ -51,6 +52,7 @@ function summarize(p: Prediction): string {
 export default function ClaimsDesk() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [healthError, setHealthError] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [providers, setProviders] = useState<ProvidersResponse | null>(null);
   const [provider, setProvider] = useState<Provider | undefined>(undefined);
 
@@ -59,7 +61,8 @@ export default function ClaimsDesk() {
   const [attachments, setAttachments] = useState<string[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>(GREETING);
   const [busy, setBusy] = useState(false);
-  const [banner, setBanner] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const [split, setSplit] = useState<"sample" | "test">("sample");
   const [cases, setCases] = useState<SampleCase[]>([]);
@@ -68,8 +71,18 @@ export default function ClaimsDesk() {
   const userIdRef = useRef<string>("web_guest");
   const expectedRef = useRef<Record<string, string> | null>(null);
 
+  const checkHealth = useCallback(() => {
+    setChecking(true);
+    setHealthError(false);
+    api
+      .health()
+      .then(setHealth)
+      .catch(() => setHealthError(true))
+      .finally(() => setChecking(false));
+  }, []);
+
   useEffect(() => {
-    api.health().then(setHealth).catch(() => setHealthError(true));
+    checkHealth();
     api
       .providers()
       .then((p) => {
@@ -77,7 +90,7 @@ export default function ClaimsDesk() {
         setProvider(p.default_provider);
       })
       .catch(() => {});
-  }, []);
+  }, [checkHealth]);
 
   useEffect(() => {
     let alive = true;
@@ -127,10 +140,23 @@ export default function ClaimsDesk() {
     });
   }, []);
 
+  const uploadAndAttach = useCallback(
+    (files: File[]) => {
+      setUploading(true);
+      // A device upload is the user's own evidence — it has no labeled answer.
+      expectedRef.current = null;
+      api
+        .uploadImages(files)
+        .then((paths) => setAttachments((prev) => [...prev, ...paths.filter((p) => !prev.includes(p))]))
+        .catch((e) => setToast(e instanceof ApiError ? e.message : "Couldn't upload that image."))
+        .finally(() => setUploading(false));
+    },
+    []
+  );
+
   const send = useCallback(async () => {
     const claim = draft.trim();
     if (!claim || attachments.length === 0 || busy) return;
-    setBanner(null);
 
     const thumbs = [...attachments];
     const imagePaths = [...attachments];
@@ -163,31 +189,16 @@ export default function ClaimsDesk() {
       const msg =
         e instanceof ApiError ? e.message : "Something went wrong while verifying the claim.";
       push({ id: uid(), kind: "text", role: "agent", text: msg });
-      setBanner(msg);
+      setToast(msg);
     } finally {
       setBusy(false);
       expectedRef.current = null;
     }
   }, [draft, attachments, busy, claimObject, provider, push]);
 
-  const activeModel = providers?.providers.find((p) => p.provider === provider)?.model;
-
   return (
     <div className="cd-app">
-      <Header
-        health={health}
-        healthError={healthError}
-        providers={providers}
-        selected={provider}
-        onSelect={setProvider}
-      />
-
-      {banner && (
-        <div className="cd-banner" role="alert">
-          <AlertIcon size={18} />
-          {banner}
-        </div>
-      )}
+      <Header />
 
       <div className="cd-workspace">
         <main className="cd-stage">
@@ -200,6 +211,8 @@ export default function ClaimsDesk() {
             attachments={attachments}
             onAddPath={addPath}
             onRemove={removePath}
+            onUpload={uploadAndAttach}
+            uploading={uploading}
             busy={busy}
             onSend={send}
           />
@@ -214,13 +227,17 @@ export default function ClaimsDesk() {
         />
       </div>
 
-      <footer className="cd-foot">
-        Orchestrate · evidence reviewed by{" "}
-        <span className="mono" style={{ color: "var(--muted)" }}>
-          {provider ?? "—"}
-          {activeModel ? ` · ${activeModel}` : ""}
-        </span>
-      </footer>
+      <StatusBar
+        health={health}
+        healthError={healthError}
+        checking={checking}
+        onRecheck={checkHealth}
+        providers={providers}
+        selected={provider}
+        onSelect={setProvider}
+      />
+
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>
   );
 }

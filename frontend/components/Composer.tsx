@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { imageUrl } from "../lib/api";
 import type { ClaimObject } from "../lib/types";
-import { OBJECT_ICON, SendIcon, ClipIcon } from "./icons";
+import { OBJECT_ICON, SendIcon, ClipIcon, UploadIcon } from "./icons";
 
 const OBJECTS: ClaimObject[] = ["car", "laptop", "package"];
 
@@ -18,6 +18,8 @@ interface Props {
   attachments: string[];
   onAddPath: (p: string) => void;
   onRemove: (p: string) => void;
+  onUpload: (files: File[]) => void;
+  uploading: boolean;
   busy: boolean;
   onSend: () => void;
 }
@@ -30,12 +32,15 @@ export default function Composer({
   attachments,
   onAddPath,
   onRemove,
+  onUpload,
+  uploading,
   busy,
   onSend,
 }: Props) {
   const [showAdd, setShowAdd] = useState(false);
   const [path, setPath] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const canSend = !busy && draft.trim().length > 0 && attachments.length > 0;
 
@@ -135,6 +140,28 @@ export default function Composer({
             }
           }}
         />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            if (files.length) onUpload(files);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          className="cd-icon-btn"
+          title="Browse — upload images from your device"
+          aria-label="Browse and upload images"
+          disabled={uploading || busy}
+          onClick={() => fileRef.current?.click()}
+        >
+          <UploadIcon size={18} />
+        </button>
         <button
           type="button"
           className="cd-icon-btn"
@@ -150,10 +177,15 @@ export default function Composer({
         </button>
       </div>
 
-      {attachments.length === 0 && (
-        <span className="cd-composer-error" style={{ color: "var(--faint)", fontWeight: 500 }}>
-          Add at least one photo — load a case from the right, or attach by path with the clip.
-        </span>
+      {uploading ? (
+        <span className="cd-composer-hint">Uploading photo…</span>
+      ) : (
+        attachments.length === 0 && (
+          <span className="cd-composer-hint">
+            Add at least one photo — <b>Browse</b> to upload, load a case from the right,
+            or attach by dataset path with the clip.
+          </span>
+        )
       )}
     </div>
   );

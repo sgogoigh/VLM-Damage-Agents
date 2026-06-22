@@ -95,6 +95,10 @@ class SamplesResponse(BaseModel):
     cases: List[SampleCase]
 
 
+class UploadResponse(BaseModel):
+    paths: List[str]
+
+
 class ProviderInfo(BaseModel):
     provider: str
     model: str

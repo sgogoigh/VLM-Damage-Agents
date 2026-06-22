@@ -17,3 +17,6 @@ log.txt
 
 # Build artifact (regenerate with make_submission.py)
 code.zip
+
+# User-uploaded evidence (runtime)
+dataset/uploads/

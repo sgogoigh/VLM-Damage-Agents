@@ -111,6 +111,27 @@ def test_static_image_served(client, settings):
     assert r.headers["content-type"].startswith("image/")
 
 
+def test_upload_image_roundtrip(client, settings):
+    # a tiny valid PNG (1x1)
+    png = bytes.fromhex(
+        "89504e470d0a1a0a0000000d49484452000000010000000108020000009077"
+        "53de0000000c4944415408d763f8cfc0f01f0005010100a0c0b1180000000049454e44ae426082"
+    )
+    r = client.post("/api/uploads", files={"files": ("photo.png", png, "image/png")})
+    assert r.status_code == 200
+    paths = r.json()["paths"]
+    assert len(paths) == 1 and paths[0].startswith("uploads/")
+    # the uploaded file is now served statically
+    got = client.get(f"/dataset/{paths[0]}")
+    assert got.status_code == 200
+    assert got.headers["content-type"].startswith("image/")
+
+
+def test_upload_rejects_non_image(client):
+    r = client.post("/api/uploads", files={"files": ("note.txt", b"hello", "text/plain")})
+    assert r.status_code == 400
+
+
 def test_batch_isolates_failures(client, settings):
     if not settings.dataset_dir.exists():
         return
